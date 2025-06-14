@@ -12,4 +12,4 @@ MONGODB_URI = os.getenv("MONGODB_URI")
 client = AsyncIOMotorClient(MONGODB_URI)
 
 # Access a specific database (e.g., "mydb")
-db = client.get_default_database()  # or client["mydb"] if not specified in URI
+db = client.get_default_database("kochchi_app")  # or client["mydb"] if not specified in URI
