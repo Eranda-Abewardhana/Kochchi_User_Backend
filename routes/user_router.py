@@ -36,9 +36,6 @@ async def update_user_profile(data: UpdateProfileRequest, token: str = Depends(o
         update_data["phone_number"] = data.phone_number
     if data.profile_pic:
         update_data["profile_pic"] = data.profile_pic
-    if data.password:
-        update_data["hashed_password"] = hash_password(data.password)
-
     if update_data:
         await users_collection.update_one({"email": email}, {"$set": update_data})
 

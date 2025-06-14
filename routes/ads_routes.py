@@ -2,7 +2,7 @@ import os
 import shutil
 import json
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends
-from typing import List
+from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
 from databases.mongo import db
@@ -14,7 +14,7 @@ from data_models.ads_model import (
 )
 from services.file_upload_service import save_uploaded_images
 from fastapi.security import OAuth2PasswordBearer
-from utils.auth.jwt_functions import decode_token
+from utils.auth.jwt_functions import decode_token, get_admin_or_super
 
 ads_router = APIRouter(prefix="/api/ads", tags=["Ads"])
 
@@ -98,15 +98,26 @@ async def delete_ad(ad_id: str):
     response_model=AdApprovalResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
 )
-async def approve_ad(ad_id: str, admin_id: str = Form(...), status: str = Form(...), comment: str = Form(None)):
+async def approve_ad_by_admin(
+    ad_id: str,
+    status: str = Form(...),
+    comment: Optional[str] = Form(None),
+    current_user: dict = Depends(get_admin_or_super)
+):
+    # Validate status input
     if status not in ["approved", "rejected"]:
         raise HTTPException(status_code=400, detail="Status must be either 'approved' or 'rejected'")
 
+    # Validate ObjectId
     try:
         obj_id = ObjectId(ad_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid ad ID format")
 
+    # Extract admin identity securely
+    admin_id = current_user.get("username") or current_user.get("email")
+
+    # Build update payload
     update_data = {
         "approval.status": status,
         "approval.adminId": admin_id,
@@ -116,21 +127,30 @@ async def approve_ad(ad_id: str, admin_id: str = Form(...), status: str = Form(.
         "updatedAt": datetime.utcnow()
     }
 
+    # Perform the update
     result = await ads_collection.update_one({"_id": obj_id}, {"$set": update_data})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="No ad found to approve/reject")
 
+    # Log approval in separate collection
     try:
         await approvals_collection.insert_one({
             "admin_id": admin_id,
             "ad_id": ad_id,
             "approved_at": datetime.utcnow(),
-            "status": status
+            "status": status,
+            "comment": comment
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Approval logging failed: {str(e)}")
 
-    return {"message": f"Ad {status} successfully"}
+    return {
+        "message": f"Ad {status} successfully",
+        "adId": ad_id,
+        "status": status,
+        "approvedBy": admin_id
+    }
+
 
 
 @ads_router.get("/approve")
