@@ -2,7 +2,7 @@ import os
 from fastapi import APIRouter, HTTPException, status
 from google.oauth2 import id_token
 from google.auth.transport import requests
-from data_modals.auth_modal import TokenResponse, RegisterRequest, LoginRequest, GoogleLoginRequest, ErrorResponse
+from data_models.auth_model import TokenResponse, RegisterRequest, LoginRequest, GoogleLoginRequest, ErrorResponse
 from utils.auth.jwt_functions import hash_password, verify_password, create_access_token
 from databases.mongo import db
 

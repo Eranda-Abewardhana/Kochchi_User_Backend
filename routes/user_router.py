@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from data_modals.auth_modal import  ErrorResponse
-from data_modals.user_modal import UserProfile, UpdateProfileRequest
+from data_models.auth_model import  ErrorResponse
+from data_models.user_model import UserProfile, UpdateProfileRequest
 from utils.auth.jwt_functions import decode_token, hash_password
 from databases.mongo import db
 
