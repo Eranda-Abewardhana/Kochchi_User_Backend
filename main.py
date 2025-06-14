@@ -1,11 +1,18 @@
+import os
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
+from routes.ads_routes import ads_router
 from routes.auth_routes import auth_router
+from routes.user_router import user_router
 
 app = FastAPI()
-
+load_dotenv()
+BASE_URL = os.getenv("BASE_URL", "http://localhost")
+PORT = int(os.getenv("PORT", 8000))
 
 
 origins = [
@@ -22,12 +29,14 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(user_router)
+app.include_router(ads_router)
 
 app.mount("/data_sources", StaticFiles(directory="data_sources"), name="data_sources")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host=BASE_URL, port=PORT)
 
 
 
