@@ -17,5 +17,4 @@ class UpdateProfileRequest(BaseModel):
     first_name: Optional[str]
     last_name: Optional[str]
     phone_number: Optional[str]
-    password: Optional[str]
     profile_pic: Optional[str]
