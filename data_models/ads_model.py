@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, HttpUrl
+from pydantic import BaseModel, EmailStr, HttpUrl, Field
 from typing import List, Optional, Dict
 from datetime import datetime
 
@@ -15,15 +15,18 @@ class Location(BaseModel):
     googleMapLocation: Optional[str]
     city: str
     district: str
-    province: str
+    province: Optional[str]
+    country: Optional[str] = "Sri Lanka"
+    state: Optional[str] = None  # For international listings
 
 
 class Business(BaseModel):
-    category: str
+    category: str  # One of the 8 core categories
     specialty: Optional[str]
     tags: List[str]
     halalAvailable: bool
     description: Optional[str]
+    menuOptions: Optional[List[str]] = []  # Only used for restaurant-type ads
 
 
 class Schedule(BaseModel):
@@ -37,11 +40,11 @@ class Schedule(BaseModel):
 
 
 class AdSettings(BaseModel):
-    isTopAd: bool
+    isTopAd: bool = False
 
 
 class Approval(BaseModel):
-    status: str  # pending / approved / rejected
+    status: str  # pending / approved / rejected / inactive
     adminId: Optional[str]
     adminComment: Optional[str]
     approvedAt: Optional[datetime]
@@ -53,8 +56,13 @@ class ReactionsGroup(BaseModel):
 
 
 class Reactions(BaseModel):
-    likes: ReactionsGroup
-    unlikes: ReactionsGroup
+    likes: ReactionsGroup = ReactionsGroup()
+    unlikes: ReactionsGroup = ReactionsGroup()
+
+
+class Recommendations(BaseModel):
+    count: int = 0
+    userIds: List[str] = []
 
 
 class AdBase(BaseModel):
@@ -64,24 +72,54 @@ class AdBase(BaseModel):
     business: Business
     schedule: Schedule
     adSettings: AdSettings
-    images: List[str]  #image URLs
+    images: List[str]  # Image URLs
+    videoUrl: Optional[HttpUrl] = None
     approval: Approval
     reactions: Reactions
+    recommendations: Optional[Recommendations] = Recommendations()
     visibility: str  # "visible" or "hidden"
+    expiryDate: Optional[datetime]
     createdAt: datetime
     updatedAt: datetime
+
+
+# ✅ Response Models
 
 class AdCreateResponse(BaseModel):
     message: str
     adId: str
     images: List[str]
 
+
 class AdDeleteResponse(BaseModel):
     message: str
+
 
 class AdApprovalResponse(BaseModel):
     message: str
 
+
 class ErrorResponse(BaseModel):
     detail: str
     status_code: Optional[int] = None
+
+class TopAdPreview(BaseModel):
+    ad_id: str = Field(...)
+    title: str = Field(...)
+    image_url: Optional[str] = Field(...)
+    city: Optional[str] = Field(...)
+    district: Optional[str] = Field(...)
+    category: Optional[str] = Field(...)
+    contact_name: Optional[str] = Field(...)
+    contact_phone: Optional[str] = Field(...)
+
+class AdListingPreview(BaseModel):
+    ad_id: str
+    title: str
+    image_url: Optional[str]
+    city: Optional[str]
+    district: Optional[str]
+    category: Optional[str]
+    contact_name: Optional[str]
+    contact_phone: Optional[str]
+    priority_score: int
