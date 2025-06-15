@@ -1,6 +1,9 @@
 import os
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, status, Depends
+from typing import Union
+
+from fastapi import APIRouter, HTTPException, status, Depends, Body
+from fastapi.security import OAuth2PasswordRequestForm
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from data_models.auth_model import (
@@ -48,6 +51,7 @@ async def register_user(user: RegisterRequest):
 
 
 # ---------------- Login (Universal) ----------------
+
 @auth_router.post("/login", response_model=TokenResponse, responses={401: {"model": ErrorResponse}})
 async def login_user(credentials: LoginRequest):
     # Find user by username or email
@@ -74,7 +78,6 @@ async def login_user(credentials: LoginRequest):
         "role": user["role"],
         "username": user.get("username")
     }
-
 
 # ---------------- Google Login (Regular Users Only) ----------------
 @auth_router.post("/google", response_model=TokenResponse)

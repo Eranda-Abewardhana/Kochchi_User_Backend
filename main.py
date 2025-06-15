@@ -1,3 +1,4 @@
+import asyncio
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -10,14 +11,30 @@ from routes.category_routes import category_router
 from routes.competition_routes import competition_router
 from routes.dansal_routes import dansal_router
 from routes.payment__routes import payment_router
+from routes.popup_routes import popup_router
 from routes.pricing_routes import pricing_router
 from routes.user_router import user_router
+from services.remove_expired_records import remove_old_non_top_non_carousal_ads, remove_expired_dansals
 
 app = FastAPI()
 load_dotenv()
 BASE_URL = os.getenv("BASE_URL", "http://localhost")
 PORT = int(os.getenv("PORT", 8000))
 
+@app.on_event("startup")
+async def startup_event():
+    async def periodic_ad_cleanup():
+        while True:
+            await remove_old_non_top_non_carousal_ads()
+            await asyncio.sleep(86400)  # every 24 hours
+
+    async def periodic_dansal_cleanup():
+        while True:
+            await remove_expired_dansals()
+            await asyncio.sleep(21600)  # every 6 hours
+
+    asyncio.create_task(periodic_ad_cleanup())
+    asyncio.create_task(periodic_dansal_cleanup())
 
 origins = [
     "*",  # Deployed frontend
@@ -43,6 +60,8 @@ app.include_router(payment_router)
 app.include_router(dansal_router)
 app.include_router(pricing_router)
 app.include_router(category_router)
+app.include_router(popup_router)
+
 
 app.mount("/data_sources", StaticFiles(directory="data_sources"), name="data_sources")
 

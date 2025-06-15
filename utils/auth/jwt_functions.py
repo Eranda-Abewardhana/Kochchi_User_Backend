@@ -1,12 +1,14 @@
 import os
 import jwt
 from datetime import datetime, timedelta
+
+from jwt import ExpiredSignatureError, InvalidTokenError
 from passlib.context import CryptContext
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from databases.mongo import db
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
+SECRET_KEY = os.getenv("SECRET_KEY", "3f2b1f41c9a042c69a7e826ee3f4e379d6a52b6818f942d0b9ac746688e423f4")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -32,13 +34,13 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
-def verify_token(token: str):
+def verify_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.JWTError:
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 

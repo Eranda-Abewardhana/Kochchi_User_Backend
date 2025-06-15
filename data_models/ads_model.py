@@ -41,6 +41,7 @@ class Schedule(BaseModel):
 
 class AdSettings(BaseModel):
     isTopAd: bool = False
+    isCarousalAd: bool = False
 
 
 class Approval(BaseModel):
@@ -123,3 +124,20 @@ class AdListingPreview(BaseModel):
     contact_name: Optional[str]
     contact_phone: Optional[str]
     priority_score: int
+
+class AdOut(AdBase):
+    adId: str = Field(..., alias="ad_id")
+
+class PaginatedAdResponse(BaseModel):
+    page: int
+    total_pages: int
+    total_ads: int
+    results: List[AdOut]
+class AdCreateSchema(BaseModel):
+    shopName: str
+    contact: Contact
+    location: Location
+    business: Business
+    schedule: Schedule
+    adSettings: AdSettings
+    videoUrl: Optional[HttpUrl]

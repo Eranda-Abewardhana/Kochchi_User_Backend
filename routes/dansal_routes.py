@@ -1,28 +1,22 @@
 import os
-from fastapi import APIRouter, HTTPException, Body, Query
-from typing import List
+from fastapi import APIRouter, HTTPException, Body, Query, Depends
+from typing import List, Optional
 from datetime import datetime, timedelta
 from math import radians, cos, sin, sqrt, atan2
+
+from fastapi.security import OAuth2PasswordBearer
+
 from databases.mongo import db
 from data_models.dansal_model import DansalEntry
 from bson import ObjectId
 
 dansal_router = APIRouter(prefix="/api/dansal", tags=["Dansal"])
 dansal_collection = db["dansal"]
-
-# --- Utility: Cleanup expired dansal events ---
-async def remove_expired_dansal():
-    today = datetime.utcnow().date()
-    await dansal_collection.delete_many({
-        "$expr": {
-            "$lt": [{"$toDate": "$date"}, today.isoformat()]
-        }
-    })
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # --- Endpoint: Create a new Dansal ---
 @dansal_router.post("/create", response_model=dict)
-async def create_dansal(entry: DansalEntry = Body(...)):
-    await remove_expired_dansal()
+async def create_dansal(entry: DansalEntry = Body(...), token: str = Depends(oauth2_scheme), docs_model: Optional[DansalEntry] = Body(None, include_in_schema=True) ):
     try:
         result = await dansal_collection.insert_one(entry.dict())
         return {"message": "Dansal created", "id": str(result.inserted_id)}
@@ -39,8 +33,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
 # --- Endpoint: Get nearby Dansal events ---
 @dansal_router.get("/nearby", response_model=List[DansalEntry])
-async def get_nearby_dansal(lat: float = Query(...), lon: float = Query(...), max_km: float = 20):
-    await remove_expired_dansal()
+async def get_nearby_dansal(lat: float = Query(...), lon: float = Query(...), max_km: float = 20, token: str = Depends(oauth2_scheme)):
     try:
         all_dansal = await dansal_collection.find().to_list(length=None)
         nearby = []

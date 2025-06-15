@@ -2,10 +2,9 @@ import os
 import random
 import shutil
 import json
-
 import requests
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, Query
-from typing import List, Optional
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, Query, Body
+from typing import List, Optional, Annotated
 from bson import ObjectId
 from datetime import datetime
 from databases.mongo import db
@@ -13,7 +12,7 @@ from data_models.ads_model import (
     AdCreateResponse,
     AdDeleteResponse,
     AdApprovalResponse,
-    ErrorResponse, TopAdPreview, AdListingPreview
+    ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema
 )
 from services.distance_radius_calculator import calculate_distance
 from services.file_upload_service import save_uploaded_images
@@ -27,7 +26,7 @@ approvals_collection = db["admin_approvals"]
 ad_pricing_collection = db["ad_pricing"]
 users_collection = db["users"]
 
-BASE_IMAGE_PATH = "data_sources"
+BASE_IMAGE_PATH = "data_sources/other_ads"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -43,10 +42,12 @@ from datetime import timedelta
     }
 )
 async def create_ad(
-    ad_json: str = Form(...),
-    images: List[UploadFile] = File(...),
-    token: str = Depends(oauth2_scheme)
+    ad_json: str = Form(..., description="Ad JSON string"),
+    images: List[UploadFile] = File(...),  # ← image files uploaded
+    token: str = Depends(oauth2_scheme),
+    # docs_model: Optional[AdCreateSchema] = Body(default=None, include_in_schema=True)
 ):
+
     email = decode_token(token)
     user = await users_collection.find_one({"email": email})
     if not user:
@@ -92,34 +93,55 @@ async def create_ad(
         image_urls = save_uploaded_images(images, image_folder)
         await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
 
-        # 3. Determine ad_type
-        ad_type = "top" if ad_data.get("adSettings", {}).get("isTopAd") else "normal"
+        # 3. Determine ad type flags
+        ad_settings = ad_data.get("adSettings", {})
+        is_top = ad_settings.get("isTopAd", False)
+        is_carousal = ad_settings.get("isCarousalAd", False)
 
-        # 4. Fetch pricing
-        pricing_doc = await ad_pricing_collection.find_one({"type": ad_type})
-        if not pricing_doc:
-            raise HTTPException(status_code=404, detail=f"No pricing found for ad type '{ad_type}'")
+        # Track all applicable types
+        ad_types = []
+        if is_top:
+            ad_types.append("top")
+        if is_carousal:
+            ad_types.append("carousal")
+        if not ad_types:
+            ad_types.append("normal")  # Fallback if neither selected
 
-        base_price = pricing_doc.get("base_price", 0)
-        effective_price = base_price
+        # 4. Fetch pricing and calculate total effective price
+        now_date = now.date()
+        effective_price_total = 0
+        base_price_total = 0
+        active_discounts = []
 
-        discount = pricing_doc.get("discount", {})
-        try:
+        for ad_type in ad_types:
+            pricing_doc = await ad_pricing_collection.find_one({"type": ad_type})
+            if not pricing_doc:
+                raise HTTPException(status_code=404, detail=f"No pricing found for ad type '{ad_type}'")
+
+            base_price = pricing_doc.get("base_price", 0)
+            effective_price = base_price
+            discount = pricing_doc.get("discount", {})
+
             if discount:
-                start = datetime.strptime(discount["start_date"], "%Y-%m-%d").date()
-                end = datetime.strptime(discount["end_date"], "%Y-%m-%d").date()
-                if start <= now.date() <= end:
-                    percent = discount.get("value_percent", 0)
-                    effective_price = round(base_price * (1 - percent / 100), 2)
-        except Exception:
-            pass  # Ignore discount errors silently
+                try:
+                    start = datetime.strptime(discount["start_date"], "%Y-%m-%d").date()
+                    end = datetime.strptime(discount["end_date"], "%Y-%m-%d").date()
+                    if start <= now_date <= end:
+                        percent = discount.get("value_percent", 0)
+                        effective_price = round(base_price * (1 - percent / 100), 2)
+                        active_discounts.append({ad_type: f"{percent}% off"})
+                except Exception:
+                    pass  # Skip faulty discounts
+
+            base_price_total += base_price
+            effective_price_total += effective_price
 
         # 5. Initiate payment
         backend_url = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
         payment_payload = {
             "ad_id": ad_id,
-            "ad_type": ad_type,
+            "ad_type":  ", ".join(ad_types),
             "description": ad_data.get("business", {}).get("description", "Ad Payment"),
             "customer_email": email,
             "customer_name": f"{user.get('first_name', '')} {user.get('last_name', '')}"
@@ -426,41 +448,80 @@ async def recommend_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
 
     return {"message": "Ad recommended successfully"}
 
-@ads_router.get("/top-previews", response_model=List[TopAdPreview])
-async def get_top_ad_previews(token: str = Depends(oauth2_scheme)):
-    top_ads = []
+from fastapi import Query, Depends, HTTPException
+from typing import List
+import random
 
-    async for ad in ads_collection.find({"adSettings.isTopAd": True, "visibility": "visible"}):
-        first_image = ad.get("images", [None])[0]
-        top_ads.append(
-            TopAdPreview(
-                ad_id=str(ad["_id"]),
-                title=ad.get("business", {}).get("title", "Untitled Ad"),
-                image_url=first_image,
-                city=ad.get("location", {}).get("city"),
-                district=ad.get("location", {}).get("district"),
-                category=ad.get("category"),
-                contact_name=ad.get("contact", {}).get("name"),
-                contact_phone=ad.get("contact", {}).get("phone")
-            )
-        )
+@ads_router.get("/top-full-ads", response_model=PaginatedAdResponse)
+async def get_full_top_ads(
+    token: str = Depends(oauth2_scheme),
+    page: int = Query(1, ge=1)
+):
+    PAGE_SIZE = 24
 
-    if not top_ads:
+    # 🔍 Fetch top ads only (visible)
+    ads_cursor = ads_collection.find({"adSettings.isTopAd": True, "visibility": "visible"})
+    all_ads = await ads_cursor.to_list(length=None)
+
+    if not all_ads:
         raise HTTPException(status_code=404, detail="No top ads found")
 
-    random.shuffle(top_ads)  # shuffle randomly before returning
-    return top_ads
+    # 🔀 Shuffle for random ordering every time
+    random.shuffle(all_ads)
 
+    total_ads = len(all_ads)
+    total_pages = (total_ads + PAGE_SIZE - 1) // PAGE_SIZE
+
+    if page > total_pages:
+        raise HTTPException(status_code=400, detail=f"Page {page} exceeds total pages {total_pages}")
+
+    # ⏬ Paginate
+    start = (page - 1) * PAGE_SIZE
+    end = start + PAGE_SIZE
+    page_ads = all_ads[start:end]
+
+    # 🔁 Format each ad
+    results = []
+    for ad in page_ads:
+        ad["ad_id"] = str(ad["_id"])  # Alias for model compatibility
+        results.append(AdOut(**ad))
+
+    return {
+        "page": page,
+        "total_pages": total_pages,
+        "total_ads": total_ads,
+        "results": results
+    }
+@ads_router.get("/carousal-ads", response_model=List[AdOut])
+async def get_carousal_ads(token: str = Depends(oauth2_scheme)):
+    # 🔍 Query for carousal + visible ads
+    cursor = ads_collection.find({
+        "adSettings.isCarousalAd": True,
+        "visibility": "visible"
+    })
+
+    ads = await cursor.to_list(length=None)
+
+    if not ads:
+        raise HTTPException(status_code=404, detail="No carousal ads found")
+
+    # 🔀 Shuffle and take first 8
+    random.shuffle(ads)
+    selected = ads[:8]
+
+    # 🔁 Convert to Pydantic model with ad_id
+    result = []
+    for ad in selected:
+        ad["ad_id"] = str(ad["_id"])  # Inject adId field
+        result.append(AdOut(**ad))
+
+    return result
 @ads_router.get("/sorted-all", response_model=List[AdListingPreview])
 async def get_all_ads_sorted_by_priority(token: str = Depends(oauth2_scheme)):
     all_ads = []
 
     async for ad in ads_collection.find({"visibility": "visible"}):
         score = 0
-
-        # Prioritize top ads
-        if ad.get("adSettings", {}).get("isTopAd"):
-            score += 2
 
         # Prioritize night-time / PM businesses
         open_time = ad.get("business", {}).get("openTime", "").lower()
