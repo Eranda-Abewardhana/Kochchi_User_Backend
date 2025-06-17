@@ -55,3 +55,10 @@ class UserResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+
+class EmailVerificationRequest(BaseModel):
+    token: str
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr

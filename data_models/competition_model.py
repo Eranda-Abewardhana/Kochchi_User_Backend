@@ -27,5 +27,7 @@ class UpdateCompetitionRequest(BaseModel):
     content: Optional[str]
     img_url: Optional[HttpUrl] = None
 
-class AddWinnersRequest(BaseModel):
-    winners: List[Winner]
+class AddWinnerRequest(BaseModel):
+    name: str
+    place: int
+    location: str
