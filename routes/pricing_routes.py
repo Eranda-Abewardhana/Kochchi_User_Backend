@@ -1,11 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
+
+from data_models.pricing_model import UpdatePriceModel, UpdateDiscountRequest, FullPricingModel
 from databases.mongo import db
 from datetime import datetime
-from data_models.pricing_model import UpdatePriceRequest, UpdateDiscountRequest
 
 pricing_router = APIRouter(prefix="/api/pricing", tags=["Ad Pricing"])
 ad_pricing_collection = db["ad_pricing"]
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # ----------------------------
 # Get current prices with applied discounts
 # ----------------------------
@@ -46,7 +48,8 @@ async def get_ad_prices():
 # Update base price for ad type
 # ----------------------------
 @pricing_router.put("/update-price")
-async def update_base_price(data: UpdatePriceRequest):
+async def update_base_price(data: UpdatePriceModel,  # ← image files uploaded
+    token: str = Depends(oauth2_scheme),):
     result = await ad_pricing_collection.update_one(
         {"type": data.ad_type},
         {"$set": {"base_price": data.base_price}},
@@ -62,7 +65,8 @@ async def update_base_price(data: UpdatePriceRequest):
 # Update or add seasonal discount
 # ----------------------------
 @pricing_router.put("/update-discount")
-async def update_discount(data: UpdateDiscountRequest):
+async def update_discount(data: UpdateDiscountRequest,  # ← image files uploaded
+    token: str = Depends(oauth2_scheme),):
     try:
         # Validate date format
         datetime.strptime(data.start_date, "%Y-%m-%d")
@@ -86,3 +90,21 @@ async def update_discount(data: UpdateDiscountRequest):
         raise HTTPException(status_code=400, detail="Failed to update discount")
 
     return {"message": f"Discount for {data.ad_type} updated successfully"}
+@pricing_router.post("/add-price")
+async def add_ad_price(
+    data: FullPricingModel,
+    token: str = Depends(oauth2_scheme),
+):
+    try:
+        # Optional: Check if a pricing document already exists (e.g. only allow one doc)
+        existing = await ad_pricing_collection.find_one({})
+        if existing:
+            raise HTTPException(status_code=400, detail="Pricing data already exists. Use update instead.")
+
+        # Insert full pricing document
+        await ad_pricing_collection.insert_one(data.model_dump())
+
+        return {"message": "Full pricing added successfully."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add pricing: {str(e)}")

@@ -52,23 +52,47 @@ async def register_user(user: RegisterRequest):
 
 # ---------------- Login (Universal) ----------------
 
+# @auth_router.post("/login", response_model=TokenResponse, responses={401: {"model": ErrorResponse}})
+# async def login_user(credentials: LoginRequest):
+#     # Find user by username or email
+#     user = await users_collection.find_one({
+#         "$or": [
+#             {"username": credentials.username},
+#             {"email": credentials.username}
+#         ]
+#     })
+#
+#     if not user or not verify_password(credentials.password, user["hashed_password"]):
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+#
+#     if not user.get("is_active", True):
+#         raise HTTPException(status_code=401, detail="Account is inactive")
+#
+#     # Use username for admins, email for regular users
+#     identifier = user.get("username") if user.get("role") in ["admin", "super_admin"] else user["email"]
+#     token = create_access_token({"sub": identifier})
+#
+#     return {
+#         "access_token": token,
+#         "token_type": "bearer",
+#         "role": user["role"],
+#         "username": user.get("username")
+#     }
 @auth_router.post("/login", response_model=TokenResponse, responses={401: {"model": ErrorResponse}})
-async def login_user(credentials: LoginRequest):
-    # Find user by username or email
+async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await users_collection.find_one({
         "$or": [
-            {"username": credentials.username},
-            {"email": credentials.username}
+            {"username": form_data.username},
+            {"email": form_data.username}
         ]
     })
 
-    if not user or not verify_password(credentials.password, user["hashed_password"]):
+    if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not user.get("is_active", True):
         raise HTTPException(status_code=401, detail="Account is inactive")
 
-    # Use username for admins, email for regular users
     identifier = user.get("username") if user.get("role") in ["admin", "super_admin"] else user["email"]
     token = create_access_token({"sub": identifier})
 
@@ -78,7 +102,6 @@ async def login_user(credentials: LoginRequest):
         "role": user["role"],
         "username": user.get("username")
     }
-
 # ---------------- Google Login (Regular Users Only) ----------------
 @auth_router.post("/google", response_model=TokenResponse)
 async def google_login(payload: GoogleLoginRequest):

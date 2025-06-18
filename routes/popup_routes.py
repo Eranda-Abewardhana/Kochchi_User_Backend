@@ -29,8 +29,7 @@ def save_popup_image(image: UploadFile, ad_id: str) -> str:
 async def create_popup_ad(
     title: str = Form(...),
     image: UploadFile = File(...),
-    token: str = Depends(oauth2_scheme),
-    docs_model: Optional[PopupAdCreate] = Body(None, include_in_schema=True)
+    token: str = Depends(oauth2_scheme)
 ):
     now = datetime.utcnow()
     ad_doc = {

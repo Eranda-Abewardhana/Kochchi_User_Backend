@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
+import uvicorn
+from databases.mongo import ensure_collections_exist
 from routes.ads_routes import ads_router
 from routes.auth_routes import auth_router
 from routes.blog_routes import blog_router
@@ -23,6 +25,8 @@ PORT = int(os.getenv("PORT", 8000))
 
 @app.on_event("startup")
 async def startup_event():
+    async def check_database():
+        await ensure_collections_exist()
     async def periodic_ad_cleanup():
         while True:
             await remove_old_non_top_non_carousal_ads()
@@ -35,6 +39,7 @@ async def startup_event():
 
     asyncio.create_task(periodic_ad_cleanup())
     asyncio.create_task(periodic_dansal_cleanup())
+    asyncio.create_task(check_database())
 
 origins = [
     "*",  # Deployed frontend
@@ -66,7 +71,6 @@ app.include_router(popup_router)
 app.mount("/data_sources", StaticFiles(directory="data_sources"), name="data_sources")
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host=BASE_URL, port=PORT)
 
 

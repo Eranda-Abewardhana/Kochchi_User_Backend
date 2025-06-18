@@ -26,7 +26,7 @@ approvals_collection = db["admin_approvals"]
 ad_pricing_collection = db["ad_pricing"]
 users_collection = db["users"]
 
-BASE_IMAGE_PATH = "data_sources/other_ads"
+BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data_sources", "other_ads"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -47,8 +47,10 @@ async def create_ad(
     token: str = Depends(oauth2_scheme),
     # docs_model: Optional[AdCreateSchema] = Body(default=None, include_in_schema=True)
 ):
+    email = decode_token(token)  # Already a string
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-    email = decode_token(token)
     user = await users_collection.find_one({"email": email})
     if not user:
         raise HTTPException(status_code=401, detail="Invalid user")
@@ -88,6 +90,11 @@ async def create_ad(
         ad_id = str(result.inserted_id)
 
         # 2. Save images
+        # Ensure base folder exists
+        if not os.path.exists(BASE_IMAGE_PATH):
+            os.makedirs(BASE_IMAGE_PATH)
+
+        # Now create the subfolder for the ad
         image_folder = os.path.join(BASE_IMAGE_PATH, ad_id)
         os.makedirs(image_folder, exist_ok=True)
         image_urls = save_uploaded_images(images, image_folder)
@@ -101,26 +108,30 @@ async def create_ad(
         # Track all applicable types
         ad_types = []
         if is_top:
-            ad_types.append("top")
+            ad_types.append("top_add_price")
         if is_carousal:
-            ad_types.append("carousal")
+            ad_types.append("carosal_add_price")
         if not ad_types:
-            ad_types.append("normal")  # Fallback if neither selected
+            ad_types.append("base_price")
 
         # 4. Fetch pricing and calculate total effective price
         now_date = now.date()
         effective_price_total = 0
         base_price_total = 0
         active_discounts = []
+        pricing_doc = await ad_pricing_collection.find_one({})
+        if not pricing_doc:
+            raise HTTPException(status_code=404, detail="Pricing data not found")
 
+        # Expected ad_types: e.g., ["base_price", "top_add_price", "carosal_add_price"]
         for ad_type in ad_types:
-            pricing_doc = await ad_pricing_collection.find_one({"type": ad_type})
-            if not pricing_doc:
-                raise HTTPException(status_code=404, detail=f"No pricing found for ad type '{ad_type}'")
+            if ad_type not in pricing_doc:
+                raise HTTPException(status_code=404, detail=f"No pricing info for ad type '{ad_type}'")
 
-            base_price = pricing_doc.get("base_price", 0)
+            type_data = pricing_doc[ad_type]
+            base_price = type_data.get("price", 0)
             effective_price = base_price
-            discount = pricing_doc.get("discount", {})
+            discount = type_data.get("discount_applied")
 
             if discount:
                 try:
