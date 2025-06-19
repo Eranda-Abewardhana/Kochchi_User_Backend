@@ -51,7 +51,8 @@ app.add_middleware(
     allow_origins=["*"],
     # Allow cookies to be sent
     allow_methods=["*"],          # Allow all HTTP methods
-    allow_headers=["*"],          # Allow all headers
+    allow_headers=["*"],
+    # Allow all headers
 )
 
 app.include_router(auth_router)
