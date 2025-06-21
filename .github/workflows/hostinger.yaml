@@ -44,6 +44,9 @@ jobs:
 
             if [ ! -d "/root/Kochchi_User_Backend" ]; then
               git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
+            else
+              cd /root/Kochchi_User_Backend
+              git pull
             fi
 
             cd /root/Kochchi_User_Backend
