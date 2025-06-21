@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw, ImageFont
 
 # Load environment variables from .env
-load_dotenv()
+#load_dotenv()
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost")
 PORT = os.getenv("PORT")

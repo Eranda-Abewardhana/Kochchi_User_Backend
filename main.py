@@ -19,7 +19,7 @@ from routes.user_router import user_router
 from services.remove_expired_records import remove_old_non_top_non_carousal_ads, remove_expired_dansals
 
 app = FastAPI()
-load_dotenv()
+#load_dotenv()
 BASE_URL = os.getenv("BASE_URL", "http://localhost")
 PORT = int(os.getenv("PORT", 8000))
 

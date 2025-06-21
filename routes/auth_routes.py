@@ -18,7 +18,7 @@ from utils.auth.jwt_functions import (
 )
 from databases.mongo import db
 # Load environment variables
-load_dotenv()
+#load_dotenv()
 auth_router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")

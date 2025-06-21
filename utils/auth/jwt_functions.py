@@ -8,7 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from databases.mongo import db
 
 # Load environment variables
-load_dotenv()
+#load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "3f2b1f41c9a042c69a7e826ee3f4e379d6a52b6818f942d0b9ac746688e423f4")
 ALGORITHM = "HS256"

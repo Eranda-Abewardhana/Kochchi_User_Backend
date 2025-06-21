@@ -33,7 +33,7 @@ BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # Load environment variables
-load_dotenv()
+#load_dotenv()
 
 @ads_router.post(
     "/create",

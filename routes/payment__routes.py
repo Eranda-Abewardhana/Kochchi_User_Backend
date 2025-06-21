@@ -7,7 +7,7 @@ import stripe
 from data_models.payment_model import PaymentRequest
 
 # ✅ Load .env variables
-load_dotenv()
+#load_dotenv()
 
 payment_router = APIRouter(prefix="/api/payments", tags=["Payments"])
 

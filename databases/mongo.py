@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from pymongo.errors import CollectionInvalid
 
 # Load environment variables
-load_dotenv()
+#load_dotenv()
 
 # Mongo URI
 MONGODB_URI = os.getenv("MONGODB_URI")
