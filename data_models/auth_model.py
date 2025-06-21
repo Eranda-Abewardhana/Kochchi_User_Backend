@@ -15,7 +15,6 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     phone_number: str
     password: str
-    profile_pic: Optional[str] = None
 
 class LoginRequest(BaseModel):
     username: str  # Can be username or email
@@ -35,6 +34,15 @@ class CreateAdminRequest(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
+    new_password: str
+
+# --- Password Reset Models ---
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
     new_password: str
 
 # --- Auth Response Models ---

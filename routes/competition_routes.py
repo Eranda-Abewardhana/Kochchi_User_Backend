@@ -1,7 +1,7 @@
 import os
 import json
 from typing import List
-from fastapi import APIRouter, HTTPException, status, Body,Form, File, UploadFile
+from fastapi import APIRouter, HTTPException, status, Body,Form, File, UploadFile, Depends
 from pymongo import ReturnDocument
 
 from data_models.competition_model import Competition, CreateCompetitionRequest, UpdateCompetitionRequest, AddWinnerRequest
@@ -10,6 +10,7 @@ from bson import ObjectId
 from datetime import datetime
 
 from services.file_upload_service import save_uploaded_images
+from utils.auth.jwt_functions import get_admin_or_super
 
 competition_router = APIRouter(prefix="/api/competition", tags=["Competition"])
 competition_collection = db["competitions"]
@@ -70,7 +71,8 @@ async def get_completed_competitions():
 @competition_router.post("/", response_model=Competition, status_code=status.HTTP_201_CREATED)
 async def create_competition(
         competition_json: str = Form(...),
-        images: List[UploadFile] = File(None)  # Optional images
+        images: List[UploadFile] = File(None),  # Optional images
+        current_user: dict = Depends(get_admin_or_super)
 ):
     try:
         # Parse the JSON data
@@ -133,7 +135,8 @@ async def create_competition(
 async def add_winner(
         competition_id: str,
         winner_json: str = Form(...),
-        images: List[UploadFile] = File(None)  # Optional images for winner
+        images: List[UploadFile] = File(None),  # Optional images for winner
+        current_user: dict = Depends(get_admin_or_super)
 ):
     try:
         # Validate ObjectId format
@@ -209,7 +212,10 @@ async def get_all_competitions():
 
 # --- Mark competition as completed ---
 @competition_router.put("/{competition_id}/complete", response_model=Competition)
-async def complete_competition(competition_id: str):
+async def complete_competition(
+        competition_id: str,
+        current_user: dict = Depends(get_admin_or_super)
+):
     try:
         # Validate ObjectId format
         if not ObjectId.is_valid(competition_id):
@@ -251,7 +257,11 @@ async def get_competition_by_id(competition_id: str):
 
 # --- Update competition ---
 @competition_router.put("/{competition_id}", response_model=Competition)
-async def update_competition(competition_id: str, updates: UpdateCompetitionRequest):
+async def update_competition(
+        competition_id: str, 
+        updates: UpdateCompetitionRequest,
+        current_user: dict = Depends(get_admin_or_super)
+):
     try:
         update_data = updates.dict(exclude_unset=True)
         if "img_url" in update_data:
@@ -276,7 +286,10 @@ async def update_competition(competition_id: str, updates: UpdateCompetitionRequ
 
 # --- Delete competition ---
 @competition_router.delete("/{competition_id}", status_code=204)
-async def delete_competition(competition_id: str):
+async def delete_competition(
+        competition_id: str,
+        current_user: dict = Depends(get_admin_or_super)
+):
     try:
         result = await competition_collection.delete_one({"_id": ObjectId(competition_id)})
         if result.deleted_count == 0:

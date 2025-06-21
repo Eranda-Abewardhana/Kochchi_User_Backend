@@ -1,12 +1,12 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, status, Depends
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from data_models.auth_model import (
     TokenResponse, RegisterRequest, LoginRequest, GoogleLoginRequest,
     ErrorResponse, CreateAdminRequest, ChangePasswordRequest, UserResponse, EmailVerificationRequest,
-    ResendVerificationRequest
+    ResendVerificationRequest, ForgotPasswordRequest, ResetPasswordRequest
 )
 from services.email_service import email_service
 from utils.auth.auth_utils import generate_verification_token, get_verification_expiry
@@ -37,7 +37,6 @@ async def register_user(user: RegisterRequest):
         "last_name": user.last_name,
         "email": user.email,
         "phone_number": user.phone_number,
-        "profile_pic": user.profile_pic,
         "hashed_password": hash_password(user.password),
         "role": "user",
         "created_at": datetime.utcnow(),
@@ -299,9 +298,95 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 # ---------------- List Admins (Super Admin Only) ----------------
 @auth_router.get("/admins")
 async def list_admins(current_user: dict = Depends(get_super_admin)):
-    admins = await users_collection.find(
-        {"role": "admin"},
-        {"hashed_password": 0}  # Exclude password field
-    ).to_list(None)
-
+    """List all admins (super admin only)"""
+    admins = []
+    async for admin in users_collection.find({"role": {"$in": ["admin", "super_admin"]}}):
+        admin["_id"] = str(admin["_id"])
+        admins.append(admin)
     return admins
+
+
+# ---------------- Password Reset Endpoints ----------------
+
+@auth_router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Request password reset email"""
+    # Find user by email
+    user = await users_collection.find_one({"email": request.email})
+    
+    if not user:
+        # Don't reveal if user exists or not for security
+        return {"message": "If an account with that email exists, a password reset link has been sent."}
+    
+    # Generate password reset token
+    reset_token = generate_verification_token()
+    reset_expires = datetime.utcnow() + timedelta(hours=1)  # 1 hour expiry
+    
+    # Update user with reset token
+    await users_collection.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {
+                "password_reset_token": reset_token,
+                "password_reset_expires": reset_expires,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    try:
+        # Send password reset email
+        await email_service.send_password_reset_email(
+            request.email,
+            reset_token,
+            user["first_name"]
+        )
+        
+        return {"message": "If an account with that email exists, a password reset link has been sent."}
+        
+    except Exception as e:
+        # If email sending fails, remove the reset token
+        await users_collection.update_one(
+            {"_id": user["_id"]},
+            {
+                "$unset": {"password_reset_token": "", "password_reset_expires": ""},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send password reset email. Please try again."
+        )
+
+
+@auth_router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Reset password using token"""
+    # Find user by reset token
+    user = await users_collection.find_one({
+        "password_reset_token": request.token,
+        "password_reset_expires": {"$gt": datetime.utcnow()}
+    })
+    
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset token"
+        )
+    
+    # Hash new password
+    hashed_password = hash_password(request.new_password)
+    
+    # Update user password and remove reset token
+    await users_collection.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {
+                "hashed_password": hashed_password,
+                "updated_at": datetime.utcnow()
+            },
+            "$unset": {"password_reset_token": "", "password_reset_expires": ""}
+        }
+    )
+    
+    return {"message": "Password reset successfully! You can now log in with your new password."}

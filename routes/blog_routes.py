@@ -1,13 +1,14 @@
 import json
 import os
 from typing import List
-from fastapi import APIRouter, HTTPException, status, UploadFile, Form, File
+from fastapi import APIRouter, HTTPException, status, UploadFile, Form, File, Depends
 from data_models.blog_model import BlogPost, CreateBlogRequest, UpdateBlogRequest
 from databases.mongo import db
 from bson import ObjectId
 from datetime import datetime
 
 from services.file_upload_service import save_uploaded_images
+from utils.auth.jwt_functions import get_admin_or_super
 
 blog_router = APIRouter(prefix="/api/blog", tags=["Blog"])
 blog_collection = db["blogs"]
@@ -17,7 +18,8 @@ BASE_IMAGE_PATH = "data_sources"
 @blog_router.post("/", response_model=BlogPost, status_code=status.HTTP_201_CREATED)
 async def create_blog(
         blog_json: str = Form(...),
-        images: List[UploadFile] = File(None)  # Optional images
+        images: List[UploadFile] = File(None),  # Optional images
+        current_user: dict = Depends(get_admin_or_super)
 ):
     try:
         # Parse the JSON data
@@ -100,7 +102,11 @@ async def get_blog_by_id(blog_id: str):
 
 # --- Update blog post by ID ---
 @blog_router.put("/{blog_id}", response_model=BlogPost)
-async def update_blog(blog_id: str, updated_data: UpdateBlogRequest):
+async def update_blog(
+        blog_id: str, 
+        updated_data: UpdateBlogRequest,
+        current_user: dict = Depends(get_admin_or_super)
+):
     try:
         update_fields = updated_data.dict(exclude_unset=True)
         if "img_url" in update_fields:
@@ -124,7 +130,10 @@ async def update_blog(blog_id: str, updated_data: UpdateBlogRequest):
 
 # --- Delete blog post by ID ---
 @blog_router.delete("/{blog_id}", status_code=204)
-async def delete_blog(blog_id: str):
+async def delete_blog(
+        blog_id: str,
+        current_user: dict = Depends(get_admin_or_super)
+):
     try:
         result = await blog_collection.delete_one({"_id": ObjectId(blog_id)})
         if result.deleted_count == 0:
