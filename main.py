@@ -72,7 +72,7 @@ app.include_router(popup_router)
 app.mount("/data_sources", StaticFiles(directory="data_sources"), name="data_sources")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=BASE_URL, port=PORT)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
 
