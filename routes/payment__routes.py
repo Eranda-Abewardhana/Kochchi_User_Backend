@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Header, HTTPException
 from pydantic import BaseModel
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import os
 import stripe
 

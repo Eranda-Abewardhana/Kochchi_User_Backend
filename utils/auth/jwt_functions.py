@@ -1,7 +1,7 @@
 import os
 import jwt
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from passlib.context import CryptContext
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials

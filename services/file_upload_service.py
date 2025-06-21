@@ -3,7 +3,7 @@ import shutil
 import uuid
 from typing import List
 from fastapi import UploadFile
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw, ImageFont
 

@@ -1,6 +1,6 @@
 import asyncio
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles

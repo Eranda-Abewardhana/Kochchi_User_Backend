@@ -1,6 +1,6 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from pymongo.errors import CollectionInvalid
 
 # Load environment variables
