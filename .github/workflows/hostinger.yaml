@@ -65,9 +65,9 @@ jobs:
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
             echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> .env
-            echo "BASE_URL=https://api.kochchibazaar.lk" >> .env
+            echo "BASE_URL=http://api.kochchibazaar.lk" >> .env
             echo "PORT=8000" >> .env
-            echo "FRONTEND_URL=https://kochchibazaar.lk" >> .env
+            echo "FRONTEND_URL=http://kochchibazaar.lk" >> .env
             echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env
             echo "FROM_EMAIL=${{ secrets.FROM_EMAIL }}" >> .env
             echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" >> .env
@@ -81,27 +81,7 @@ jobs:
             echo "🔄 Pulling latest docker image..."
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
-            echo "🚀 Start backend, db & certbot first..."
-#            docker-compose up -d backend mongodb certbot
+            echo "🚀 Starting backend, mongodb and nginx..."
             docker-compose up -d backend mongodb nginx
-
-            # 🔑 VERY IMPORTANT STEP — one-time cert generation if not exists:
-            if [ ! -d "/var/lib/docker/volumes/certbot-etc/_data/live/kochchibazaar.lk" ]; then
-              echo "⚠️ Certificate not found, issuing certificate..."
-              docker run --rm \
-                -v certbot-etc:/etc/letsencrypt \
-                -v certbot-var:/var/lib/letsencrypt \
-                -v webroot:/var/lib/letsencrypt \
-                certbot/certbot certonly --webroot \
-                -w /var/lib/letsencrypt \
-                -d kochchibazaar.lk \
-                -d api.kochchibazaar.lk \
-                --email erandasathsara@gmail.com --agree-tos --no-eff-email
-            else
-              echo "✅ Certificate already exists, skipping issue"
-            fi
-
-            echo "🚀 Now starting nginx..."
-            docker-compose up -d nginx
 
             echo "✅ Deployment completed successfully."
