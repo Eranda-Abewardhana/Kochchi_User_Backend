@@ -1,28 +1,7 @@
-name: Deploy to Hostinger VPS
-
-on:
-  push:
-    tags:
-      - 'dev-*'
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Build Docker image
-      run: docker build -t eranda24/kochchi_app:${{ github.ref_name }} .
-
-    - name: Push Docker image
-      run: |
-        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-        docker push eranda24/kochchi_app:${{ github.ref_name }}
-
     - name: Deploy to Hostinger VPS
       uses: appleboy/ssh-action@master
+      env:
+        IMAGE_TAG: ${{ github.ref_name }}
       with:
         host: ${{ secrets.HOSTINGER_IP }}
         username: ${{ secrets.HOSTINGER_USER }}
@@ -42,14 +21,15 @@ jobs:
             chmod +x /usr/local/bin/docker-compose
           fi
 
-          # Clone repo only if not already cloned
+          # Clone repo if not already cloned
           if [ ! -d "/root/Kochchi_User_Backend" ]; then
             git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
           fi
 
           cd /root/Kochchi_User_Backend
 
-          docker pull eranda24/kochchi_app:${{ github.ref_name }}
-          docker-compose pull
-          docker-compose down
-          docker-compose up -d
+          docker pull eranda24/kochchi_app:$IMAGE_TAG
+
+          IMAGE_TAG=$IMAGE_TAG docker-compose pull
+          IMAGE_TAG=$IMAGE_TAG docker-compose down
+          IMAGE_TAG=$IMAGE_TAG docker-compose up -d
