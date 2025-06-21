@@ -1,3 +1,26 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    tags:
+      - 'dev-*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Build Docker image
+      run: docker build -t eranda24/kochchi_app:${{ github.ref_name }} .
+
+    - name: Push Docker image
+      run: |
+        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        docker push eranda24/kochchi_app:${{ github.ref_name }}
+
     - name: Deploy to Hostinger VPS
       uses: appleboy/ssh-action@master
       env:
@@ -7,7 +30,6 @@
         username: ${{ secrets.HOSTINGER_USER }}
         password: ${{ secrets.HOSTINGER_PASSWORD }}
         script: |
-          # Install Docker if not installed
           if ! command -v docker >/dev/null 2>&1; then
             apt update && apt upgrade -y
             apt install docker.io -y
@@ -15,13 +37,11 @@
             systemctl enable docker
           fi
 
-          # Install Docker Compose if not installed
           if ! command -v docker-compose >/dev/null 2>&1; then
             curl -SL https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
             chmod +x /usr/local/bin/docker-compose
           fi
 
-          # Clone repo if not already cloned
           if [ ! -d "/root/Kochchi_User_Backend" ]; then
             git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
           fi
