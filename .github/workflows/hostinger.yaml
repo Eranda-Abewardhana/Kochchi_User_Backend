@@ -76,7 +76,12 @@ jobs:
             echo "✅ Showing contents of .env file:"
             cat .env
 
+            # 🔥 Docker cleanup before pulling new image
+            echo "🚀 Cleaning up old docker images and containers..."
+            docker-compose down || true
+            docker system prune -af --volumes || true
+
+            # Pull fresh docker image and start new containers
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
-            docker-compose down
             docker-compose up -d
