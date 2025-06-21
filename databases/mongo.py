@@ -1,25 +1,16 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
 from pymongo.errors import CollectionInvalid
 
-# Load environment variables
-load_dotenv()
+# Read environment variables directly (these are injected by Docker Compose or Deployment)
+MONGODB_URI = os.environ["MONGODB_URI"]  # Fail-fast if not provided
+REQUIRED_COLLECTIONS = os.environ.get("REQUIRED_COLLECTIONS", "").split(",")
+REQUIRED_COLLECTIONS = [col.strip() for col in REQUIRED_COLLECTIONS if col.strip()]
 
-# Mongo URI
-MONGODB_URI = os.getenv("MONGODB_URI")
-
-# Mongo client and database
+# Create Mongo client
 client = AsyncIOMotorClient(MONGODB_URI)
 db = client.get_default_database("kochchi_app")
 
-# ✅ Load required collections from .env
-REQUIRED_COLLECTIONS = os.getenv("REQUIRED_COLLECTIONS", "").split(",")
-
-# ✅ Remove whitespace (if any)
-REQUIRED_COLLECTIONS = [col.strip() for col in REQUIRED_COLLECTIONS if col.strip()]
-
-# ✅ Ensure collections exist
 async def ensure_collections_exist():
     existing_collections = await db.list_collection_names()
     for name in REQUIRED_COLLECTIONS:

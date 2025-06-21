@@ -1,0 +1,108 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    tags:
+      - 'dev-*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build Docker image
+        run: docker build -t eranda24/kochchi_app:${{ github.ref_name }} .
+
+      - name: Push Docker image
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push eranda24/kochchi_app:${{ github.ref_name }}
+
+      - name: Deploy to Hostinger VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTINGER_IP }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          password: ${{ secrets.HOSTINGER_PASSWORD }}
+          script: |
+            set -e
+            IMAGE_TAG="${{ github.ref_name }}"
+
+            echo "🔧 Checking Docker installation..."
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "🚫 Docker not found! Installing..."
+              apt update && apt upgrade -y
+              apt install docker.io -y
+              systemctl start docker
+              systemctl enable docker
+            else
+              echo "✅ Docker already installed."
+            fi
+
+            echo "🔧 Checking Docker Compose installation..."
+            if ! command -v docker-compose >/dev/null 2>&1; then
+              echo "🚫 Docker Compose not found! Installing..."
+              curl -SL https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            else
+              echo "✅ Docker Compose already installed."
+            fi
+
+            echo "🔧 Cloning or pulling repo..."
+            if [ ! -d "/root/Kochchi_User_Backend" ]; then
+              git clone -b dev https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
+            else
+              cd /root/Kochchi_User_Backend
+              git fetch origin
+              git checkout dev
+              git pull origin dev
+            fi
+
+            cd /root/Kochchi_User_Backend
+
+            echo "📝 Creating .env file..."
+            echo "IMAGE_TAG=${IMAGE_TAG}" > .env
+            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+            echo "ALGORITHM=HS256" >> .env
+            echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
+            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+            echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> .env
+            echo "BASE_URL=https://api.kochchibazaar.lk" >> .env
+            echo "PORT=8000" >> .env
+            echo "FRONTEND_URL=https://kochchibazaar.lk" >> .env
+            echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env
+            echo "FROM_EMAIL=${{ secrets.FROM_EMAIL }}" >> .env
+            echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" >> .env
+            echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env
+            echo "REQUIRED_COLLECTIONS=users,ads,categories,ad_pricing,admin_approvals,payments,competitions,blogs,dansal" >> .env
+
+            echo "✅ .env created:"
+            cat .env
+
+            echo "🔎 Checking directory content:"
+            pwd
+            ls -la
+
+            echo "🔎 Checking if docker-compose.yml exists..."
+            if [ -f docker-compose.yml ]; then
+              echo "✅ docker-compose.yml found!"
+            else
+              echo "🚫 docker-compose.yml NOT FOUND! Deployment will fail!"
+              exit 1
+            fi
+
+            echo "🚀 Cleaning up old docker images and containers..."
+            docker-compose down || true
+            docker system prune -af --volumes || true
+
+            echo "🔄 Pulling latest docker image..."
+            docker pull eranda24/kochchi_app:$IMAGE_TAG
+
+            echo "🚀 Starting Docker Compose..."
+            docker-compose up -d
+
+            echo "✅ Deployment completed successfully."

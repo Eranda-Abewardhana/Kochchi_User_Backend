@@ -1,20 +1,22 @@
 from bson.errors import InvalidId
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
+from fastapi.security import OAuth2PasswordBearer
+
 from databases.mongo import db
 from data_models.category_model import Category, CategoryResponse, CreateCategoryResponse, ErrorResponse
 from bson import ObjectId
-from typing import List
+from typing import List, Optional
 
 category_router = APIRouter(prefix="/api/categories", tags=["Categories"])
 category_collection = db["categories"]
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # ✅ Create new category
 @category_router.post(
     "/create",
     response_model=CreateCategoryResponse,
     responses={400: {"model": ErrorResponse}}
 )
-async def create_category(data: Category):
+async def create_category(data: Category, token: str = Depends(oauth2_scheme), docs_model: Optional[CreateCategoryResponse] = Body(None, include_in_schema=True)):
     existing = await category_collection.find_one({"name": data.name})
     if existing:
         raise HTTPException(status_code=400, detail="Category already exists")
