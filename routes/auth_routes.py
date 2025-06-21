@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Form
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from data_models.auth_model import (
@@ -144,30 +144,77 @@ async def resend_verification_email(request: ResendVerificationRequest):
     return {"message": "Verification email sent successfully!"}
 
 
+# @auth_router.post("/login", response_model=TokenResponse, responses={401: {"model": ErrorResponse}})
+# async def login_user(credentials: LoginRequest):
+#     # Find user by username or email
+#     user = await users_collection.find_one({
+#         "$or": [
+#             {"username": credentials.username},
+#             {"email": credentials.username}
+#         ]
+#     })
+#
+#     if not user or not verify_password(credentials.password, user["hashed_password"]):
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+#
+#     if not user.get("is_active", True):
+#         raise HTTPException(status_code=401, detail="Account is inactive")
+#
+#     # Check if email is verified (skip for admins)
+#     if user.get("role") == "user" and not user.get("is_verified", False):
+#         raise HTTPException(
+#             status_code=401,
+#             detail="Please verify your email address before logging in. Check your inbox for verification link."
+#         )
+#
+#     # Use username for admins, email for regular users
+#     identifier = user.get("username") if user.get("role") in ["admin", "super_admin"] else user["email"]
+#     token = create_access_token({"sub": identifier})
+#
+#     return {
+#         "access_token": token,
+#         "token_type": "bearer",
+#         "role": user["role"],
+#         "username": user.get("username")
+#     }
 @auth_router.post("/login", response_model=TokenResponse, responses={401: {"model": ErrorResponse}})
-async def login_user(credentials: LoginRequest):
-    # Find user by username or email
+async def login_user(
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    print(f"Trying login for: {username}")
+
     user = await users_collection.find_one({
         "$or": [
-            {"username": credentials.username},
-            {"email": credentials.username}
+            {"username": username},
+            {"email": username}
         ]
     })
 
-    if not user or not verify_password(credentials.password, user["hashed_password"]):
+    if not user:
+        print("User not found")
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    print("User found in DB")
+
+    # For debugging only: check what password hash is stored
+    print(f"Stored hash: {user['hashed_password']}")
+
+    if not verify_password(password, user["hashed_password"]):
+        print("Password mismatch")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    print("Password verified")
 
     if not user.get("is_active", True):
         raise HTTPException(status_code=401, detail="Account is inactive")
 
-    # Check if email is verified (skip for admins)
     if user.get("role") == "user" and not user.get("is_verified", False):
         raise HTTPException(
             status_code=401,
-            detail="Please verify your email address before logging in. Check your inbox for verification link."
+            detail="Please verify your email address before logging in."
         )
 
-    # Use username for admins, email for regular users
     identifier = user.get("username") if user.get("role") in ["admin", "super_admin"] else user["email"]
     token = create_access_token({"sub": identifier})
 
@@ -178,10 +225,12 @@ async def login_user(credentials: LoginRequest):
         "username": user.get("username")
     }
 
+
 # ---------------- Google Login (Regular Users Only) ----------------
 @auth_router.post("/google", response_model=TokenResponse)
 async def google_login(payload: GoogleLoginRequest):
     try:
+        # Verify Google ID token
         idinfo = id_token.verify_oauth2_token(payload.google_id_token, requests.Request(), GOOGLE_CLIENT_ID)
 
         user_email = idinfo["email"]
@@ -189,6 +238,7 @@ async def google_login(payload: GoogleLoginRequest):
         last_name = idinfo.get("family_name", "")
         profile_pic = idinfo.get("picture", "")
 
+        # Check if user exists
         user = await users_collection.find_one({"email": user_email})
         if not user:
             user_data = {
@@ -204,6 +254,7 @@ async def google_login(payload: GoogleLoginRequest):
             }
             await users_collection.insert_one(user_data)
 
+        # Create your own token
         token = create_access_token({"sub": user_email})
         return {
             "access_token": token,
@@ -211,9 +262,8 @@ async def google_login(payload: GoogleLoginRequest):
             "role": "user"
         }
 
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google ID token")
-
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
 # ---------------- Super Admin: Create Admin ----------------
 @auth_router.post("/create-admin", response_model=UserResponse, status_code=201)
