@@ -33,22 +33,16 @@ jobs:
 
             echo "🔧 Checking Docker installation..."
             if ! command -v docker >/dev/null 2>&1; then
-              echo "🚫 Docker not found! Installing..."
               apt update && apt upgrade -y
               apt install docker.io -y
               systemctl start docker
               systemctl enable docker
-            else
-              echo "✅ Docker already installed."
             fi
 
             echo "🔧 Checking Docker Compose installation..."
             if ! command -v docker-compose >/dev/null 2>&1; then
-              echo "🚫 Docker Compose not found! Installing..."
               curl -SL https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
               chmod +x /usr/local/bin/docker-compose
-            else
-              echo "✅ Docker Compose already installed."
             fi
 
             echo "🔧 Cloning or pulling repo..."
@@ -80,40 +74,31 @@ jobs:
             echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env
             echo "REQUIRED_COLLECTIONS=users,ads,categories,ad_pricing,admin_approvals,payments,competitions,blogs,dansal" >> .env
 
-            echo "✅ .env created:"
-            cat .env
-
-            echo "🔎 Checking directory content:"
-            pwd
-            ls -la
-
-            echo "🔎 Checking if docker-compose.yml exists..."
-            if [ -f docker-compose.yml ]; then
-              echo "✅ docker-compose.yml found!"
-            else
-              echo "🚫 docker-compose.yml NOT FOUND! Deployment will fail!"
-              exit 1
-            fi
-
-            echo "🚀 Cleaning up old docker images and containers..."
+            echo "✅ .env created"
             docker-compose down || true
             docker system prune -af --volumes || true
 
             echo "🔄 Pulling latest docker image..."
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
-            echo "🚀 Starting backend, mongo and certbot containers first..."
+            echo "🚀 Start backend, db & certbot first..."
             docker-compose up -d backend mongodb certbot
 
-            echo "🛡️ Running certbot to issue certificates..."
-            docker run --rm \
-              -v certbot-etc:/etc/letsencrypt \
-              -v certbot-var:/var/lib/letsencrypt \
-              -p 80:80 \
-              certbot/certbot certonly --standalone \
-              --preferred-challenges http \
-              -d kochchibazaar.lk \
-              --agree-tos --email erandasathsara@gmail.com --no-eff-email || true
+            # 🔑 VERY IMPORTANT STEP — one-time cert generation if not exists:
+            if [ ! -d "/var/lib/docker/volumes/certbot-etc/_data/live/kochchibazaar.lk" ]; then
+              echo "⚠️ Certificate not found, issuing certificate..."
+              docker run --rm \
+                -v certbot-etc:/etc/letsencrypt \
+                -v certbot-var:/var/lib/letsencrypt \
+                -v webroot:/var/lib/letsencrypt \
+                certbot/certbot certonly --webroot \
+                -w /var/lib/letsencrypt \
+                -d kochchibazaar.lk \
+                -d api.kochchibazaar.lk \
+                --email erandasathsara@gmail.com --agree-tos --no-eff-email
+            else
+              echo "✅ Certificate already exists, skipping issue"
+            fi
 
             echo "🚀 Now starting nginx..."
             docker-compose up -d nginx
