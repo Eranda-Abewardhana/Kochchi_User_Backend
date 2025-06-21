@@ -70,6 +70,12 @@ jobs:
             echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env
             echo "REQUIRED_COLLECTIONS=users,ads,categories,ad_pricing,admin_approvals,payments,competitions,blogs,dansal" >> .env
 
+            # 🔥 Add debugging log
+            echo "✅ Listing .env file to verify creation:"
+            ls -la .env
+            echo "✅ Showing contents of .env file:"
+            cat .env
+
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
             docker-compose down
