@@ -28,22 +28,30 @@ jobs:
           username: ${{ secrets.HOSTINGER_USER }}
           password: ${{ secrets.HOSTINGER_PASSWORD }}
           script: |
+            set -e
             IMAGE_TAG="${{ github.ref_name }}"
 
-            # Install docker & docker-compose if not installed
+            echo "🔧 Checking Docker installation..."
             if ! command -v docker >/dev/null 2>&1; then
+              echo "🚫 Docker not found! Installing..."
               apt update && apt upgrade -y
               apt install docker.io -y
               systemctl start docker
               systemctl enable docker
+            else
+              echo "✅ Docker already installed."
             fi
 
+            echo "🔧 Checking Docker Compose installation..."
             if ! command -v docker-compose >/dev/null 2>&1; then
+              echo "🚫 Docker Compose not found! Installing..."
               curl -SL https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
               chmod +x /usr/local/bin/docker-compose
+            else
+              echo "✅ Docker Compose already installed."
             fi
 
-            # Clone repo or pull latest code
+            echo "🔧 Cloning or pulling repo..."
             if [ ! -d "/root/Kochchi_User_Backend" ]; then
               git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
             else
@@ -53,7 +61,7 @@ jobs:
 
             cd /root/Kochchi_User_Backend
 
-            # Dynamically create the .env file from GitHub Secrets
+            echo "📝 Creating .env file..."
             echo "IMAGE_TAG=${IMAGE_TAG}" > .env
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
             echo "ALGORITHM=HS256" >> .env
@@ -70,23 +78,29 @@ jobs:
             echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env
             echo "REQUIRED_COLLECTIONS=users,ads,categories,ad_pricing,admin_approvals,payments,competitions,blogs,dansal" >> .env
 
-            # 🔥 Add debugging log
-            echo "✅ Listing .env file to verify creation:"
-            ls -la .env
-            echo "✅ Showing contents of .env file:"
+            echo "✅ .env created:"
             cat .env
 
-            # 🔥 Docker cleanup before pulling new image
+            echo "🔎 Checking directory content:"
+            pwd
+            ls -la
+
+            echo "🔎 Checking if docker-compose.yml exists..."
+            if [ -f docker-compose.yml ]; then
+              echo "✅ docker-compose.yml found!"
+            else
+              echo "🚫 docker-compose.yml NOT FOUND! Deployment will fail!"
+              exit 1
+            fi
+
             echo "🚀 Cleaning up old docker images and containers..."
             docker-compose down || true
             docker system prune -af --volumes || true
 
-            # Pull latest docker image
+            echo "🔄 Pulling latest docker image..."
             docker pull eranda24/kochchi_app:$IMAGE_TAG
-            
-            # Move to repo directory where docker-compose.yml exists
-            cd /root/Kochchi_User_Backend
-            
-            # Run docker compose
+
+            echo "🚀 Starting Docker Compose..."
             docker-compose up -d
 
+            echo "✅ Deployment completed successfully."
