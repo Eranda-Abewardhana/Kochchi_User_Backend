@@ -45,7 +45,7 @@ async def create_ad(
     ad_json: str = Form(..., description="Ad JSON string"),
     images: List[UploadFile] = File(...),  # ← image files uploaded
     token: str = Depends(oauth2_scheme),
-    # docs_model: Optional[AdCreateSchema] = Body(default=None, include_in_schema=True)
+    docs_model: Optional[AdCreateSchema] = Body(default=None, include_in_schema=True)
 ):
     email = decode_token(token)  # Already a string
     if not email:
