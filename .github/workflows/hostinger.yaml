@@ -82,7 +82,8 @@ jobs:
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
             echo "🚀 Start backend, db & certbot first..."
-            docker-compose up -d backend mongodb certbot
+#            docker-compose up -d backend mongodb certbot
+            docker-compose up -d backend mongodb nginx
 
             # 🔑 VERY IMPORTANT STEP — one-time cert generation if not exists:
             if [ ! -d "/var/lib/docker/volumes/certbot-etc/_data/live/kochchibazaar.lk" ]; then
