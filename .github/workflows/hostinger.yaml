@@ -102,7 +102,20 @@ jobs:
             echo "🔄 Pulling latest docker image..."
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
-            echo "🚀 Starting Docker Compose..."
-            docker-compose up -d
+            echo "🚀 Starting backend, mongo and certbot containers first..."
+            docker-compose up -d backend mongodb certbot
+
+            echo "🛡️ Running certbot to issue certificates..."
+            docker run --rm \
+              -v certbot-etc:/etc/letsencrypt \
+              -v certbot-var:/var/lib/letsencrypt \
+              -p 80:80 \
+              certbot/certbot certonly --standalone \
+              --preferred-challenges http \
+              -d kochchibazaar.lk \
+              --agree-tos --email erandasathsara@gmail.com --no-eff-email || true
+
+            echo "🚀 Now starting nginx..."
+            docker-compose up -d nginx
 
             echo "✅ Deployment completed successfully."
