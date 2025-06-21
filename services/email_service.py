@@ -1,10 +1,12 @@
 # services/email_service.py
 import httpx
 import os
+from dotenv import load_dotenv
 from fastapi import HTTPException
-
 from utils.email.email_template import get_verification_email_template, get_welcome_email_template
 
+# Load environment variables
+load_dotenv()
 
 class EmailService:
     def __init__(self):
