@@ -1,5 +1,7 @@
 import os
 from datetime import datetime
+
+from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, status, Depends, Form
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -15,7 +17,8 @@ from utils.auth.jwt_functions import (
     get_current_user, get_super_admin, get_admin_or_super
 )
 from databases.mongo import db
-
+# Load environment variables
+load_dotenv()
 auth_router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")

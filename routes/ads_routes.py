@@ -3,6 +3,7 @@ import random
 import shutil
 import json
 import requests
+from dotenv import load_dotenv
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, Query, Body
 from typing import List, Optional, Annotated
 from bson import ObjectId
@@ -18,6 +19,7 @@ from services.distance_radius_calculator import calculate_distance
 from services.file_upload_service import save_uploaded_images
 from fastapi.security import OAuth2PasswordBearer
 from utils.auth.jwt_functions import decode_token, get_admin_or_super
+from datetime import timedelta
 
 ads_router = APIRouter(prefix="/api/ads", tags=["Ads"])
 
@@ -30,8 +32,8 @@ users_collection = db["users"]
 BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data_sources", "other_ads"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
-
-from datetime import timedelta
+# Load environment variables
+load_dotenv()
 
 @ads_router.post(
     "/create",
