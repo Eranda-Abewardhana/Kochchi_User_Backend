@@ -54,7 +54,8 @@ jobs:
             cd /root/Kochchi_User_Backend
 
             # Dynamically create the .env file from GitHub Secrets
-            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" > .env
+            echo "IMAGE_TAG=${IMAGE_TAG}" > .env
+            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
             echo "ALGORITHM=HS256" >> .env
             echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
@@ -71,6 +72,5 @@ jobs:
 
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
-            export IMAGE_TAG=$IMAGE_TAG
             docker-compose down
             docker-compose up -d
