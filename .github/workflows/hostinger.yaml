@@ -81,7 +81,12 @@ jobs:
             docker-compose down || true
             docker system prune -af --volumes || true
 
-            # Pull fresh docker image and start new containers
+            # Pull latest docker image
             docker pull eranda24/kochchi_app:$IMAGE_TAG
-
+            
+            # Move to repo directory where docker-compose.yml exists
+            cd /root/Kochchi_User_Backend
+            
+            # Run docker compose
             docker-compose up -d
+
