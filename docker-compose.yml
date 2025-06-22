@@ -19,6 +19,8 @@ services:
     restart: always
     volumes:
       - mongodb_data:/data/db
+    ports:
+      - "27017:27017"   # <-- Expose MongoDB for external access
     networks:
       - internal
 

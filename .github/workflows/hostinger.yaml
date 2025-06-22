@@ -82,6 +82,6 @@ jobs:
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
             echo "🚀 Starting backend, mongodb and nginx..."
-            docker-compose up -d backend mongodb nginx
+            docker-compose up -d backend mongodb nginx certbot
 
             echo "✅ Deployment completed successfully."
