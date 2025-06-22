@@ -137,7 +137,7 @@ app.include_router(pricing_router)
 app.include_router(category_router)
 app.include_router(popup_router)
 
-
+os.makedirs('data_sources', exist_ok=True)
 app.mount("/data_sources", StaticFiles(directory="data_sources"), name="data_sources")
 
 if __name__ == "__main__":
