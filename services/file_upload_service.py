@@ -12,7 +12,7 @@ PORT = os.getenv("PORT")
 
 # Build full BASE_URL with port if not already included
 if PORT and f":{PORT}" not in BASE_URL:
-    BASE_URL = f"{BASE_URL.rstrip('/')}:{{PORT}}"
+    BASE_URL = f"{BASE_URL.rstrip('/')}:{PORT}"
 
 def add_watermark(img_path: str, text: str = "kochchibazaar") -> str:
     """

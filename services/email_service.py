@@ -27,7 +27,6 @@ class EmailService:
             params: resend.Emails.SendParams = {
                 "from": self.from_email,
                 "to": [to_email],
-                "reply_to": reply_to_email,
                 "subject": subject,
                 "html": html_content,
             }
@@ -47,25 +46,12 @@ class EmailService:
         verification_link = f"{self.frontend_url}/verify-email?token={token}"
         html_content = get_verification_email_template(first_name, verification_link)
 
-        # For testing: add note about actual recipient
-        actual_recipient = email
-        if email != self.test_email:
-            html_content = f"""
-            <div style="background: #f0f0f0; padding: 10px; margin-bottom: 20px; border-radius: 5px; font-family: Arial, sans-serif;">
-                <strong>🧪 Testing Mode:</strong> This email was intended for: <strong>{actual_recipient}</strong>
-                <br><small>Replies to this email will go to the actual user.</small>
-            </div>
-            {html_content}
-            """
-
         result = await self._send_email(
-            to_email=self.test_email,  # Send to your test email
-            subject=f"🎉 Verify Your Email Address - Welcome Aboard!" + (
-                f" (Test for {actual_recipient})" if email != self.test_email else ""),
-            html_content=html_content,
-            reply_to_email=actual_recipient  # Replies go to the signed-up user
+            to_email=email,  # Send directly to the user
+            subject=f"🎉 Verify Your Email Address - Welcome Aboard!",
+            html_content=html_content
         )
-        print(f"Verification email sent to {self.test_email}, reply-to: {actual_recipient}")
+        print(f"Verification email sent to {email}")
         return result
 
     async def send_welcome_email(self, email: str, first_name: str):
@@ -73,25 +59,12 @@ class EmailService:
         try:
             html_content = get_welcome_email_template(first_name, self.frontend_url)
 
-            # For testing: add note about actual recipient
-            actual_recipient = email
-            if email != self.test_email:
-                html_content = f"""
-                <div style="background: #f0f0f0; padding: 10px; margin-bottom: 20px; border-radius: 5px; font-family: Arial, sans-serif;">
-                    <strong>🧪 Testing Mode:</strong> This email was intended for: <strong>{actual_recipient}</strong>
-                    <br><small>Replies to this email will go to the actual user.</small>
-                </div>
-                {html_content}
-                """
-
             result = await self._send_email(
-                to_email=self.test_email,  # Send to your test email
-                subject=f"🎉 Welcome! Your account is ready" + (
-                    f" (Test for {actual_recipient})" if email != self.test_email else ""),
-                html_content=html_content,
-                reply_to_email=actual_recipient  # Replies go to the signed-up user
+                to_email=email,  # Send directly to the user
+                subject=f"🎉 Welcome! Your account is ready",
+                html_content=html_content
             )
-            print(f"Welcome email sent to {self.test_email}, reply-to: {actual_recipient}")
+            print(f"Welcome email sent to {email}")
             return result
         except Exception as e:
             # Log error but don't fail the verification process
@@ -103,25 +76,12 @@ class EmailService:
         reset_link = f"{self.frontend_url}/reset-password?token={token}"
         html_content = get_password_reset_email_template(first_name, reset_link)
 
-        # For testing: add note about actual recipient
-        actual_recipient = email
-        if email != self.test_email:
-            html_content = f"""
-            <div style="background: #f0f0f0; padding: 10px; margin-bottom: 20px; border-radius: 5px; font-family: Arial, sans-serif;">
-                <strong>🧪 Testing Mode:</strong> This email was intended for: <strong>{actual_recipient}</strong>
-                <br><small>Replies to this email will go to the actual user.</small>
-            </div>
-            {html_content}
-            """
-
         result = await self._send_email(
-            to_email=self.test_email,  # Send to your test email
-            subject=f"🔐 Password Reset Request" + (
-                f" (Test for {actual_recipient})" if email != self.test_email else ""),
-            html_content=html_content,
-            reply_to_email=actual_recipient  # Replies go to the actual user
+            to_email=email,  # Send directly to the user
+            subject=f"🔐 Password Reset Request",
+            html_content=html_content
         )
-        print(f"Password reset email sent to {self.test_email}, reply-to: {actual_recipient}")
+        print(f"Password reset email sent to {email}")
         return result
 
 

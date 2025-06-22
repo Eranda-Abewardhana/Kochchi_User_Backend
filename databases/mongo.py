@@ -3,7 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import CollectionInvalid
 
 # Read environment variables directly (these are injected by Docker Compose or Deployment)
-MONGODB_URI = os.environ["MONGODB_URI"]  # Fail-fast if not provided
+MONGODB_URI = os.environ["MONGODB_URI"]
 REQUIRED_COLLECTIONS = os.environ.get("REQUIRED_COLLECTIONS", "").split(",")
 REQUIRED_COLLECTIONS = [col.strip() for col in REQUIRED_COLLECTIONS if col.strip()]
 

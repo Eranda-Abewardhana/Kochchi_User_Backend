@@ -8,6 +8,10 @@ import asyncio
 import sys
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -28,15 +32,22 @@ async def init_super_admin():
             print(f"Username: {existing_super_admin.get('username', 'N/A')}")
             return
 
+        # Get super admin credentials from environment variables
+        super_admin_username = os.getenv("SUPER_ADMIN_USERNAME", "superadmin")
+        super_admin_password = os.getenv("SUPER_ADMIN_PASSWORD", "SuperAdmin123!")
+        super_admin_email = os.getenv("SUPER_ADMIN_EMAIL", "superadmin@company.com")
+        super_admin_first_name = os.getenv("SUPER_ADMIN_FIRST_NAME", "Super")
+        super_admin_last_name = os.getenv("SUPER_ADMIN_LAST_NAME", "Admin")
+
         # Create super admin
         super_admin_data = {
-            "username": "superadmin",
-            "email": "superadmin@company.com",
-            "first_name": "Super",
-            "last_name": "Admin",
+            "username": super_admin_username,
+            "email": super_admin_email,
+            "first_name": super_admin_first_name,
+            "last_name": super_admin_last_name,
             "phone_number": "",
             "profile_pic": None,
-            "hashed_password": hash_password("SuperAdmin123!"),  # Change this password
+            "hashed_password": hash_password(super_admin_password),
             "role": "super_admin",
             "created_at": datetime.utcnow(),
             "is_active": True
@@ -46,8 +57,8 @@ async def init_super_admin():
         print("🎉 Super admin created successfully!")
         print("=" * 40)
         print("📋 LOGIN CREDENTIALS:")
-        print(f"Username: superadmin")
-        print(f"Password: SuperAdmin123!")
+        print(f"Username: {super_admin_username}")
+        print(f"Password: {super_admin_password}")
         print("=" * 40)
         print("⚠️  IMPORTANT: Please change the password after first login!")
 
