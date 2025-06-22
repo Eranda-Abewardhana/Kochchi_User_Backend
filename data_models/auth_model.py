@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from enum import Enum
@@ -70,3 +72,10 @@ class EmailVerificationRequest(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
+class UserLastLoginResponse(BaseModel):
+    username: Optional[str]
+    email: Optional[EmailStr]
+    first_name: str
+    last_name: str
+    role: str
+    last_login: Optional[datetime]

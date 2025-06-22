@@ -33,3 +33,18 @@ class DansalEntry(BaseModel):
 
     createdAt: datetime = datetime.utcnow()
     updatedAt: datetime = datetime.utcnow()
+class DansalRequestModel(BaseModel):
+    title: str  # e.g., "Dansal for Vesak"
+    organizer: DansalContact
+    location: DansalLocation
+    foodType: str  # e.g., "Rice & Curry", "Ice Cream", "Tea"
+
+    date: str  # e.g., "2025-05-24" (for display)
+    time: str  # e.g., "10:00 AM – 2:00 PM" (for display)
+
+    endDateTime: datetime  # 🔥 Used for auto-deletion
+
+    description: Optional[str]
+
+    createdAt: datetime = datetime.utcnow()
+    updatedAt: datetime = datetime.utcnow()

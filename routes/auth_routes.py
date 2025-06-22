@@ -1,12 +1,14 @@
 import os
 from datetime import datetime, timedelta
+from typing import List
+
 from fastapi import APIRouter, HTTPException, status, Depends
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from data_models.auth_model import (
     TokenResponse, RegisterRequest, LoginRequest, GoogleLoginRequest,
     ErrorResponse, CreateAdminRequest, ChangePasswordRequest, UserResponse, EmailVerificationRequest,
-    ResendVerificationRequest, ForgotPasswordRequest, ResetPasswordRequest
+    ResendVerificationRequest, ForgotPasswordRequest, ResetPasswordRequest, UserLastLoginResponse
 )
 from services.email_service import email_service
 from utils.auth.auth_utils import generate_verification_token, get_verification_expiry
@@ -165,6 +167,12 @@ async def login_user(credentials: LoginRequest):
             status_code=401,
             detail="Please verify your email address before logging in. Check your inbox for verification link."
         )
+
+    # ✅ Update last_login time after successful login
+    await users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"last_login": datetime.utcnow()}}
+    )
 
     # Use username for admins, email for regular users
     identifier = user.get("username") if user.get("role") in ["admin", "super_admin"] else user["email"]
@@ -390,3 +398,23 @@ async def reset_password(request: ResetPasswordRequest):
     )
     
     return {"message": "Password reset successfully! You can now log in with your new password."}
+@auth_router.get("/users/last-logins", response_model=List[UserLastLoginResponse])
+async def get_all_users_last_logins():
+    try:
+        users_cursor = users_collection.find({})
+        users = []
+        async for user in users_cursor:
+            user_data = {
+                "username": user.get("username"),
+                "email": user.get("email"),
+                "first_name": user.get("first_name"),
+                "last_name": user.get("last_name"),
+                "role": user.get("role"),
+                "last_login": user.get("last_login"),
+            }
+            users.append(user_data)
+
+        return users
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

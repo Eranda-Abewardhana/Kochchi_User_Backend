@@ -3,7 +3,7 @@ import random
 import shutil
 import json
 import requests
-#from dotenv import load_dotenv
+from dotenv import load_dotenv
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, Query, Body
 from typing import List, Optional, Annotated
 from bson import ObjectId
@@ -33,7 +33,7 @@ BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 # Load environment variables
-#load_dotenv()
+load_dotenv()
 
 @ads_router.post(
     "/create",

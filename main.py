@@ -19,6 +19,7 @@ from routes.user_router import user_router
 from services.remove_expired_records import remove_old_non_top_non_carousal_ads, remove_expired_dansals
 from utils.auth.jwt_functions import hash_password
 from datetime import datetime
+from databases.mongo import db
 
 # Load environment variables
 load_dotenv()
@@ -30,7 +31,6 @@ PORT = int(os.getenv("PORT", 8000))
 async def init_super_admin():
     """Initialize super admin user if not exists"""
     try:
-        from databases.mongo import db
         users_collection = db["users"]
 
         # Check if super admin already exists
