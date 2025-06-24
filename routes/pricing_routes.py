@@ -40,7 +40,7 @@ async def get_ad_prices():
         }
 
     if not result:
-        raise HTTPException(status_code=404, detail="No pricing info found")
+        raise HTTPException(status_code=200, detail="No pricing info found")
 
     return result
 
