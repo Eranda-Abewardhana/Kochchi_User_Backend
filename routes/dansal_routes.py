@@ -14,9 +14,9 @@ from bson import ObjectId
 from services.distance_radius_calculator import calculate_distance
 from services.file_upload_service import save_uploaded_images
 
-dansal_router = APIRouter(prefix="/api/dansal", tags=["Dansal"])
+dansal_router = APIRouter(prefix="/dansal", tags=["Dansal"])
 dansal_collection = db["dansal"]
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 # Base image directory
 BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data_sources", "dansal_img"))

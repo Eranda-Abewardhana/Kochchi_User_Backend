@@ -10,10 +10,10 @@ from fastapi.security import OAuth2PasswordBearer
 from data_models.popup_model import PopupAdOut, PopupAdCreate
 from databases.mongo import db
 
-popup_router = APIRouter(prefix="/api/popup-ads", tags=["Popup Ads"])
+popup_router = APIRouter(prefix="/popup-ads", tags=["Popup Ads"])
 POPUP_IMAGE_PATH = "data_sources/popup_ads"
 popup_ads_collection = db["popup_ads"]
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 # Helper function to save image
 def save_popup_image(image: UploadFile, ad_id: str) -> str:

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from data_models.payment_model import PaymentRequest
 
 # Initialize router
-payment_router = APIRouter(prefix="/api/payments", tags=["Payments"])
+payment_router = APIRouter(prefix="/payments", tags=["Payments"])
 
 # Stripe configuration from environment variables
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")

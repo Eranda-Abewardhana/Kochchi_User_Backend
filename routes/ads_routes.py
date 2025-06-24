@@ -21,7 +21,7 @@ from fastapi.security import OAuth2PasswordBearer
 from utils.auth.jwt_functions import decode_token, get_admin_or_super
 from datetime import timedelta
 
-ads_router = APIRouter(prefix="/api/ads", tags=["Ads"])
+ads_router = APIRouter(prefix="/ads", tags=["Ads"])
 
 ads_collection = db["ads"]
 payments_collection = db["payments"]
@@ -31,7 +31,7 @@ users_collection = db["users"]
 
 BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data_sources", "other_ads"))
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # Load environment variables
 load_dotenv()
 

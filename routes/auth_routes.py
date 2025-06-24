@@ -18,7 +18,7 @@ from utils.auth.jwt_functions import (
 )
 from databases.mongo import db
 
-auth_router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 users_collection = db["users"]

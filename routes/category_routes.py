@@ -7,9 +7,9 @@ from data_models.category_model import Category, CategoryResponse, CreateCategor
 from bson import ObjectId
 from typing import List, Optional
 
-category_router = APIRouter(prefix="/api/categories", tags=["Categories"])
+category_router = APIRouter(prefix="/categories", tags=["Categories"])
 category_collection = db["categories"]
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # ✅ Create new category
 @category_router.post(
     "/create",

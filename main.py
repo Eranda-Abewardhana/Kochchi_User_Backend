@@ -24,7 +24,7 @@ from databases.mongo import db
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(root_path="/api")
+app = FastAPI()
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost")
 PORT = int(os.getenv("PORT", 8000))
