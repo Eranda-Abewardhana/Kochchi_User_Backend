@@ -8,8 +8,8 @@ from utils.auth.jwt_functions import decode_token, hash_password
 from databases.mongo import db
 from services.file_upload_service import save_uploaded_images
 
-user_router = APIRouter(prefix="/api/users", tags=["User Profile"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+user_router = APIRouter(prefix="/users", tags=["User Profile"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 users_collection = db["users"]
 BASE_IMAGE_PATH = "data_sources"

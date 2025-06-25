@@ -12,7 +12,7 @@ from datetime import datetime
 from services.file_upload_service import save_uploaded_images
 from utils.auth.jwt_functions import get_admin_or_super
 
-competition_router = APIRouter(prefix="/api/competition", tags=["Competition"])
+competition_router = APIRouter(prefix="/competition", tags=["Competition"])
 competition_collection = db["competitions"]
 # Base path for storing images
 BASE_IMAGE_PATH = "data_sources/competition"

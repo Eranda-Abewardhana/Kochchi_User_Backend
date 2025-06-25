@@ -5,9 +5,9 @@ from data_models.pricing_model import UpdatePriceModel, UpdateDiscountRequest, F
 from databases.mongo import db
 from datetime import datetime
 
-pricing_router = APIRouter(prefix="/api/pricing", tags=["Ad Pricing"])
+pricing_router = APIRouter(prefix="/pricing", tags=["Ad Pricing"])
 ad_pricing_collection = db["ad_pricing"]
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # ----------------------------
 # Get current prices with applied discounts
 # ----------------------------
@@ -40,7 +40,7 @@ async def get_ad_prices():
         }
 
     if not result:
-        raise HTTPException(status_code=404, detail="No pricing info found")
+        raise HTTPException(status_code=200, detail="No pricing info found")
 
     return result
 

@@ -10,7 +10,7 @@ from datetime import datetime
 from services.file_upload_service import save_uploaded_images
 from utils.auth.jwt_functions import get_admin_or_super
 
-blog_router = APIRouter(prefix="/api/blog", tags=["Blog"])
+blog_router = APIRouter(prefix="/blog", tags=["Blog"])
 blog_collection = db["blogs"]
 # Base path for storing blog images
 BASE_IMAGE_PATH = "data_sources"
