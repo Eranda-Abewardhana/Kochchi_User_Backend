@@ -22,6 +22,7 @@ Thumbs.db
 # MongoDB dumps
 dump/
 
+data_sources/
 # Node.js (if using frontend in same repo)
 node_modules/
 dist/
