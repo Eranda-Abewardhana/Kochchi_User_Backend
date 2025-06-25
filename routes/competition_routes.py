@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException, status, Body,Form, File, UploadFile, Depends
 from pymongo import ReturnDocument
 
@@ -70,62 +70,43 @@ async def get_completed_competitions():
 # --- Create a new competition with image upload ---
 @competition_router.post("/", response_model=Competition, status_code=status.HTTP_201_CREATED)
 async def create_competition(
-        competition_json: str = Form(...),
-        images: List[UploadFile] = File(None),  # Optional images
-        current_user: dict = Depends(get_admin_or_super)
+    title: str = Form(...),
+    content: str = Form(...),
+    images: Optional[List[UploadFile]] = File(None),
+    current_user: dict = Depends(get_admin_or_super)
 ):
     try:
-        # Parse the JSON data
-        try:
-            competition_data = json.loads(competition_json)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON in competition_json")
+        # Build base data
+        data_dict = {
+            "title": title,
+            "content": content,
+            "createdAt": datetime.utcnow(),
+            "is_completed": False,
+            "winners": [],
+            "img_url": None,
+        }
 
-        # Validate the competition data structure
-        try:
-            competition_request = CreateCompetitionRequest(**competition_data)
-        except Exception as e:
-            raise HTTPException(status_code=422, detail=f"Invalid competition data: {str(e)}")
-
-        # Prepare competition data
-        data_dict = competition_request.dict()
-        data_dict["createdAt"] = datetime.utcnow()
-        data_dict["is_completed"] = False
-        data_dict["winners"] = []
-        data_dict["img_url"] = None  # Initialize as None
-
-        # Insert competition first to get the ID
+        # Insert to DB first
         result = await competition_collection.insert_one(data_dict)
         if not result.inserted_id:
             raise HTTPException(status_code=500, detail="Failed to create competition")
         competition_id = str(result.inserted_id)
 
-        # Handle image upload if images are provided
-        if images and len(images) > 0:
-            # Create folder for this competition's images: data_sources/competition/{competition_id}
-            image_folder = os.path.join(BASE_IMAGE_PATH, competition_id)
-            os.makedirs(image_folder, exist_ok=True)
+        # Handle image uploads
+        if images:
+            folder = os.path.join(BASE_IMAGE_PATH, competition_id)
+            os.makedirs(folder, exist_ok=True)
+            image_urls = save_uploaded_images(images, folder)
+            if image_urls:
+                await competition_collection.update_one(
+                    {"_id": result.inserted_id},
+                    {"$set": {"img_url": image_urls[0]}}
+                )
+                data_dict["img_url"] = image_urls[0]
 
-            # Save images and get URLs
-            image_urls = save_uploaded_images(images, image_folder)
-
-            # Store only the first image URL in imgUrl field
-            first_image_url = image_urls[0] if image_urls else None
-
-            # Update the competition with the first image URL
-            await competition_collection.update_one(
-                {"_id": result.inserted_id},
-                {"$set": {"img_url": first_image_url}}
-            )
-
-            data_dict["img_url"] = first_image_url
-
-        # Return the created competition
         data_dict["id"] = competition_id
         return Competition(**data_dict)
 
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
@@ -134,7 +115,7 @@ async def create_competition(
 @competition_router.post("/{competition_id}/winners", response_model=Competition)
 async def add_winner(
         competition_id: str,
-        winner_json: str = Form(...),
+        winner: AddWinnerRequest = Depends(AddWinnerRequest.as_form),
         images: List[UploadFile] = File(None),  # Optional images for winner
         current_user: dict = Depends(get_admin_or_super)
 ):
@@ -148,20 +129,8 @@ async def add_winner(
         if not existing:
             raise HTTPException(status_code=404, detail="Competition not found")
 
-        # Parse the JSON data
-        try:
-            winner_data = json.loads(winner_json)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON in winner_json")
-
-        # Validate the winner data structure
-        try:
-            winner_request = AddWinnerRequest(**winner_data)
-        except Exception as e:
-            raise HTTPException(status_code=422, detail=f"Invalid winner data: {str(e)}")
-
-        # Prepare winner data
-        winner_dict = winner_request.dict()
+        # winner is already validated by Pydantic
+        winner_dict = winner.dict()
         winner_dict["imageUrl"] = None  # Initialize as None
 
         # Handle image upload if images are provided

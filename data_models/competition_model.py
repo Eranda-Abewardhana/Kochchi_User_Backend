@@ -1,6 +1,7 @@
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, List
 from datetime import datetime
+from fastapi import Form
 
 class Winner(BaseModel):
     name: str
@@ -20,14 +21,21 @@ class Competition(BaseModel):
 class CreateCompetitionRequest(BaseModel):
     title: str
     content: str
-    img_url: Optional[HttpUrl] = None
 
 class UpdateCompetitionRequest(BaseModel):
     title: Optional[str]
     content: Optional[str]
-    img_url: Optional[HttpUrl] = None
-
+    
 class AddWinnerRequest(BaseModel):
     name: str
     place: int
     location: str
+
+    @classmethod
+    def as_form(
+        cls,
+        name: str = Form(...),
+        place: int = Form(...),
+        location: str = Form(...),
+    ):
+        return cls(name=name, place=place, location=location)
