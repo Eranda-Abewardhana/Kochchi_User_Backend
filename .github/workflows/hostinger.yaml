@@ -64,11 +64,9 @@ jobs:
             echo "ACCESS_TOKEN_EXPIRE_MINUTES=300" >> .env
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-            echo "MONGO_INITDB_ROOT_USERNAME=${{ secrets.MONGO_INITDB_ROOT_USERNAME }}" >> .env
-            echo "MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}" >> .env
             echo "SUPER_ADMIN_USERNAME=${{ secrets.SUPER_ADMIN_USERNAME }}" >> .env
             echo "SUPER_ADMIN_PASSWORD=${{ secrets.SUPER_ADMIN_PASSWORD }}" >> .env
-            echo "MONGODB_URI=mongodb://${{ secrets.MONGO_INITDB_ROOT_USERNAME }}:${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}@mongodb:27017/kochchibazaar?authSource=admin" >> .env
+            echo "MONGODB_URI=${{ secrets.MONGODB_ATLAS_URI }}" >> .env  # ✅ USE ATLAS URI HERE
             echo "BASE_URL=${{ secrets.BASE_URL }}" >> .env
             echo "PORT=${{ secrets.PORT }}" >> .env
             echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> .env
@@ -88,7 +86,7 @@ jobs:
             echo "🔄 Pulling latest docker image..."
             docker pull eranda24/kochchi_app:$IMAGE_TAG
 
-            echo "🚀 Starting backend, mongodb and nginx..."
-            docker-compose up -d backend mongodb nginx certbot
+            echo "🚀 Starting backend and nginx..."
+            docker-compose up -d backend nginx certbot  # ❌ Removed 'mongodb'
 
             echo "✅ Deployment completed successfully."

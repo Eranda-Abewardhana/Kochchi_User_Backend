@@ -8,25 +8,8 @@ services:
     restart: always
     env_file:
       - .env
-    depends_on:
-      - mongodb
     networks:
       - internal
-
-  mongodb:
-    image: mongo:7.0
-    container_name: mongodb
-    command: mongod --auth --bind_ip_all
-    restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - internal
-    ports:
-      - "37017:27017"  # 👈 External port 37017 → internal 27017
 
   nginx:
     image: nginx:latest
@@ -59,7 +42,6 @@ services:
       - internal
 
 volumes:
-  mongodb_data:
   certbot-webroot:
   certbot-etc:
     external: true
