@@ -2,7 +2,7 @@ import os
 import stripe
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
-from data_models.payment_model import PaymentRequest
+from data_models.payment_model import PaymentRequest, RefundRequest
 
 # Initialize router
 payment_router = APIRouter(prefix="/payments", tags=["Payments"])
