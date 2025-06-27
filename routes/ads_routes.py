@@ -16,6 +16,9 @@ from data_models.ads_model import (
     AdApprovalResponse,
     ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema
 )
+from fastapi import Query, Depends, HTTPException
+from typing import List
+import random
 from fastapi import APIRouter, Request, HTTPException
 import stripe
 import os
@@ -24,7 +27,7 @@ from bson import ObjectId
 from services.distance_radius_calculator import calculate_distance
 from services.file_upload_service import save_uploaded_images, upload_image_to_cloudinary
 from fastapi.security import OAuth2PasswordBearer
-from utils.auth.jwt_functions import decode_token, get_admin_or_super
+from utils.auth.jwt_functions import decode_token, get_admin_or_super, get_current_user
 from datetime import timedelta
 
 ads_router = APIRouter(prefix="/ads", tags=["Ads"])
@@ -48,16 +51,16 @@ webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
         400: {"model": ErrorResponse},
         422: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+    status_code=status.HTTP_201_CREATED
 )
 async def create_ad(
     ad_json: str = Form(...),
     images: List[UploadFile] = File(...),
     coupon_code: Optional[str] = Form(default=None),
-    token: str = Depends(oauth2_scheme),
-    docs_model: Optional[AdCreateSchema] = Body(default=None)
+    current_user: dict = Depends(get_current_user)
 ):
-    email = decode_token(token)
+    email = current_user['email']
     if not email:
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -161,9 +164,10 @@ async def create_ad(
 @ads_router.delete(
     "/{ad_id}",
     response_model=AdDeleteResponse,
-    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    status_code=status.HTTP_201_CREATED
 )
-async def delete_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
+async def delete_ad(ad_id: str,  current_user: dict = Depends(get_admin_or_super())):
     try:
         obj_id = ObjectId(ad_id)
     except Exception:
@@ -186,14 +190,14 @@ async def delete_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
 @ads_router.post(
     "/{ad_id}/approve",
     response_model=AdApprovalResponse,
-    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+status_code=status.HTTP_201_CREATED
 )
 async def approve_ad_by_admin(
     ad_id: str,
     status: str = Form(...),
     comment: Optional[str] = Form(None),
-    current_user: dict = Depends(get_admin_or_super),
-    token: str = Depends(oauth2_scheme)
+    current_user: dict = Depends(get_admin_or_super)
 ):
     # Validate status input
     if status not in ["approved", "rejected"]:
@@ -244,8 +248,8 @@ async def approve_ad_by_admin(
 
 
 
-@ads_router.get("/approve")
-async def get_approved_ads(token: str = Depends(oauth2_scheme)):
+@ads_router.get("/approve",status_code=status.HTTP_201_CREATED)
+async def get_approved_ads( current_user: dict = Depends(get_current_user)):
     ads = await ads_collection.find({"approval.status": "approved"}).to_list(100)
     result = [
         {
@@ -259,10 +263,10 @@ async def get_approved_ads(token: str = Depends(oauth2_scheme)):
     return result
 
 
-@ads_router.get("/my", responses={401: {"model": ErrorResponse}})
-async def get_my_ads(token: str = Depends(oauth2_scheme)):
+@ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_201_CREATED)
+async def get_my_ads( current_user: dict = Depends(get_current_user)):
     try:
-        email = decode_token(token)
+        email = current_user['email']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -278,8 +282,8 @@ async def get_my_ads(token: str = Depends(oauth2_scheme)):
     ]
 
 
-@ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
-async def get_ad_details(ad_id: str, token: str = Depends(oauth2_scheme)):
+@ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},status_code=status.HTTP_200_OK)
+async def get_ad_details(ad_id: str,  current_user: dict = Depends(get_admin_or_super())):
     try:
         obj_id = ObjectId(ad_id)
     except Exception:
@@ -300,11 +304,12 @@ async def get_ad_details(ad_id: str, token: str = Depends(oauth2_scheme)):
         401: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+status_code=status.HTTP_200_OK
 )
-async def like_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
+async def like_ad(ad_id: str,  current_user: dict = Depends(get_current_user)):
     try:
-        user_id = decode_token(token)
+        user_id = current_user['user_id']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -351,11 +356,12 @@ async def like_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
         401: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+    status_code=status.HTTP_200_OK
 )
-async def unlike_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
+async def unlike_ad(ad_id: str,  current_user: dict = Depends(get_current_user)):
     try:
-        user_id = decode_token(token)
+        user_id = current_user['user_id']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -403,12 +409,13 @@ async def unlike_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
         404: {"model": ErrorResponse},
         401: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+    status_code=status.HTTP_200_OK
 )
-async def recommend_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
+async def recommend_ad(ad_id: str, current_user: dict = Depends(get_current_user)):
     # Step 1: Decode user
     try:
-        user_id = decode_token(token)
+        user_id = current_user['user_id']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -441,13 +448,9 @@ async def recommend_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
 
     return {"message": "Ad recommended successfully"}
 
-from fastapi import Query, Depends, HTTPException
-from typing import List
-import random
-
 @ads_router.get("/top-full-ads", response_model=PaginatedAdResponse)
 async def get_full_top_ads(
-    token: str = Depends(oauth2_scheme),
+    current_user: dict = Depends(get_current_user),
     page: int = Query(1, ge=1)
 ):
     PAGE_SIZE = 24
@@ -486,7 +489,7 @@ async def get_full_top_ads(
         "results": results
     }
 @ads_router.get("/carousal-ads", response_model=List[AdOut])
-async def get_carousal_ads(token: str = Depends(oauth2_scheme)):
+async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
     # 🔍 Query for carousal + visible ads
     cursor = ads_collection.find({
         "adSettings.isCarousalAd": True,
@@ -510,7 +513,7 @@ async def get_carousal_ads(token: str = Depends(oauth2_scheme)):
 
     return result
 @ads_router.get("/sorted-all", response_model=List[AdListingPreview])
-async def get_all_ads_sorted_by_priority(token: str = Depends(oauth2_scheme)):
+async def get_all_ads_sorted_by_priority(current_user: dict = Depends(get_current_user)):
     all_ads = []
 
     async for ad in ads_collection.find({"visibility": "visible"}):
@@ -547,8 +550,7 @@ async def find_nearby_restaurants(
     lat: float = Query(..., description="Your latitude"),
     lng: float = Query(..., description="Your longitude"),
     max_distance_km: float = Query(10.0, description="Search radius in kilometers"),
-    token: str = Depends(oauth2_scheme)
-):
+    current_user: dict = Depends(get_current_user)):
     nearby_ads = []
 
     async for ad in ads_collection.find({"category": "Restaurants", "visibility": "visible"}):
@@ -578,7 +580,7 @@ async def find_nearby_restaurants(
 
     return nearby_ads
 @ads_router.post("/webhook")
-async def stripe_webhook(request: Request):
+async def stripe_webhook(request: Request, current_user: dict = Depends(get_current_user)):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 

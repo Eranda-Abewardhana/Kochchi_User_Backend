@@ -52,6 +52,8 @@ def decode_token(token: str):
     return verify_token(token)
 
 
+from bson import ObjectId
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     payload = verify_token(token)
@@ -60,7 +62,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     if not identifier:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    # Try to find by username first (for admins), then by email (for users)
+    # Lookup by username or email
     user = await users_collection.find_one({
         "$or": [
             {"username": identifier},
@@ -71,7 +73,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     if not user or not user.get("is_active", True):
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
+    # Attach user_id as a string
+    user["user_id"] = str(user["_id"])
+
     return user
+
 
 
 async def get_super_admin(current_user: dict = Depends(get_current_user)):
