@@ -64,7 +64,11 @@ jobs:
             echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
-            echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> .env
+            echo "MONGO_INITDB_ROOT_USERNAME=admin" >> .env
+            echo "MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}" >> .env
+            echo "SUPER_ADMIN_USERNAME=${{ secrets.SUPER_ADMIN_USERNAME }}" >> .env
+            echo "SUPER_ADMIN_PASSWORD=${{ secrets.SUPER_ADMIN_PASSWORD }}" >> .env
+            echo "MONGODB_URI=mongodb://admin:${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}@mongodb:27017/kochchibazaar?authSource=admin" >> .env
             echo "BASE_URL=http://api.kochchibazaar.lk" >> .env
             echo "PORT=8000" >> .env
             echo "FRONTEND_URL=http://kochchibazaar.lk" >> .env
@@ -75,8 +79,11 @@ jobs:
             echo "REQUIRED_COLLECTIONS=users,ads,categories,ad_pricing,admin_approvals,payments,competitions,blogs,dansal" >> .env
 
             echo "✅ .env created"
+
+            echo "🧹 Cleaning up old containers and images..."
             docker-compose down || true
-            docker system prune -af --volumes || true
+            docker image rm eranda24/kochchi_app:$IMAGE_TAG || true
+            docker system prune -af || true
 
             echo "🔄 Pulling latest docker image..."
             docker pull eranda24/kochchi_app:$IMAGE_TAG
