@@ -7,7 +7,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 from data_models.auth_model import (
     TokenResponse, RegisterRequest, LoginRequest, GoogleLoginRequest,
-    ErrorResponse, CreateAdminRequest, ChangePasswordRequest, UserResponse, EmailVerificationRequest,
+    ErrorResponse, CreateAdminRequest, CreateSuperAdminRequest, ChangePasswordRequest, UserResponse, EmailVerificationRequest,
     ResendVerificationRequest, ForgotPasswordRequest, ResetPasswordRequest, UserLastLoginResponse
 )
 from services.email_service import email_service
@@ -398,6 +398,7 @@ async def reset_password(request: ResetPasswordRequest):
     )
     
     return {"message": "Password reset successfully! You can now log in with your new password."}
+
 @auth_router.get("/users/last-logins", response_model=List[UserLastLoginResponse])
 async def get_all_users_last_logins():
     try:
@@ -418,3 +419,42 @@ async def get_all_users_last_logins():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------- Create Super Admin (No Auth Required) ----------------
+@auth_router.post("/create-super-admin", response_model=UserResponse, status_code=201)
+async def create_super_admin(admin_data: CreateSuperAdminRequest):
+    """Create a new super admin. This will delete any existing super admin and create a new one."""
+    try:
+        # Delete any existing super admin
+        await users_collection.delete_many({"role": "super_admin"})
+        
+        # Create new super admin
+        new_super_admin = {
+            "username": admin_data.username,
+            "first_name": "Super",
+            "last_name": "Admin",
+            "email": f"{admin_data.username}@company.com",
+            "phone_number": "",
+            "profile_pic": None,
+            "hashed_password": hash_password(admin_data.password),
+            "role": "super_admin",
+            "created_at": datetime.utcnow(),
+            "is_active": True
+        }
+
+        await users_collection.insert_one(new_super_admin)
+
+        return {
+            "username": new_super_admin["username"],
+            "email": new_super_admin["email"],
+            "first_name": new_super_admin["first_name"],
+            "last_name": new_super_admin["last_name"],
+            "role": new_super_admin["role"],
+            "is_active": new_super_admin["is_active"]
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create super admin: {str(e)}"
+        )

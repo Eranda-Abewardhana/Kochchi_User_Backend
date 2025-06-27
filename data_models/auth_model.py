@@ -34,6 +34,10 @@ class CreateAdminRequest(BaseModel):
     password: str
     profile_pic: Optional[str] = None
 
+class CreateSuperAdminRequest(BaseModel):
+    username: str
+    password: str
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str

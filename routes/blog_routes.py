@@ -2,7 +2,7 @@ import json
 import os
 from typing import List
 from fastapi import APIRouter, HTTPException, status, UploadFile, Form, File, Depends
-from data_models.blog_model import BlogPost, CreateBlogRequest, UpdateBlogRequest
+from data_models.blog_model import BlogPost, UpdateBlogRequest
 from databases.mongo import db
 from bson import ObjectId
 from datetime import datetime
@@ -17,27 +17,19 @@ BASE_IMAGE_PATH = "data_sources"
 # --- Create a new blog post ---
 @blog_router.post("/", response_model=BlogPost, status_code=status.HTTP_201_CREATED)
 async def create_blog(
-        blog_json: str = Form(...),
+        title: str = Form(...),
+        content: str = Form(...),
         images: List[UploadFile] = File(None),  # Optional images
         current_user: dict = Depends(get_admin_or_super)
 ):
     try:
-        # Parse the JSON data
-        try:
-            blog_data = json.loads(blog_json)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON in blog_json")
-
-        # Validate the blog data structure
-        try:
-            blog_request = CreateBlogRequest(**blog_data)
-        except Exception as e:
-            raise HTTPException(status_code=422, detail=f"Invalid blog data: {str(e)}")
-
         # Prepare blog data
-        post_data = blog_request.dict()
-        post_data["createdAt"] = datetime.utcnow()
-        post_data["img_url"] = None  # Initialize as None
+        post_data = {
+            "title": title,
+            "content": content,
+            "createdAt": datetime.utcnow(),
+            "img_url": None  # Initialize as None
+        }
 
         # Insert blog post first to get the ID
         result = await blog_collection.insert_one(post_data)

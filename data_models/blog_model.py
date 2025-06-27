@@ -9,11 +9,6 @@ class BlogPost(BaseModel):
     img_url: Optional[HttpUrl] = None
     createdAt: datetime
 
-class CreateBlogRequest(BaseModel):
-    title: str
-    content: str
-    img_url: Optional[HttpUrl] = None
-
 class UpdateBlogRequest(BaseModel):
     title: Optional[str]
     content: Optional[str]
