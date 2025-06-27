@@ -283,7 +283,7 @@ async def get_my_ads( current_user: dict = Depends(get_current_user)):
 
 
 @ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},status_code=status.HTTP_200_OK)
-async def get_ad_details(ad_id: str,  current_user: dict = Depends(get_admin_or_super())):
+async def get_ad_details(ad_id: str,  current_user: dict = Depends(get_current_user)):
     try:
         obj_id = ObjectId(ad_id)
     except Exception:
