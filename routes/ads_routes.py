@@ -2,6 +2,7 @@ import os
 import random
 import shutil
 import json
+import cloudinary.uploader
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, Query, Body
@@ -15,6 +16,11 @@ from data_models.ads_model import (
     AdApprovalResponse,
     ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema
 )
+from fastapi import APIRouter, Request, HTTPException
+import stripe
+import os
+from datetime import datetime
+from bson import ObjectId
 from services.distance_radius_calculator import calculate_distance
 from services.file_upload_service import save_uploaded_images, upload_image_to_cloudinary
 from fastapi.security import OAuth2PasswordBearer
@@ -34,16 +40,7 @@ BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # Load environment variables
 load_dotenv()
-
-@ads_router.post(
-    "/create",
-    response_model=AdCreateResponse,
-    responses={
-        400: {"model": ErrorResponse},
-        422: {"model": ErrorResponse},
-        500: {"model": ErrorResponse}
-    }
-)
+webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 @ads_router.post(
     "/create",
     response_model=AdCreateResponse,
@@ -56,6 +53,7 @@ load_dotenv()
 async def create_ad(
     ad_json: str = Form(...),
     images: List[UploadFile] = File(...),
+    coupon_code: Optional[str] = Form(default=None),
     token: str = Depends(oauth2_scheme),
     docs_model: Optional[AdCreateSchema] = Body(default=None)
 ):
@@ -68,13 +66,16 @@ async def create_ad(
         raise HTTPException(status_code=401, detail="Invalid user")
 
     ad_id = None
-    image_folder = None
+    image_urls = []
 
     try:
-        # Parse input JSON
         ad_data = json.loads(ad_json)
         now = datetime.utcnow()
         expiry = now + timedelta(days=31)
+
+        price_ids = ad_data.get("price_ids", [])
+        if not price_ids:
+            raise HTTPException(status_code=400, detail="No Stripe price IDs provided")
 
         ad_data.update({
             "approval": {"status": "pending", "adminId": None, "adminComment": None, "approvedAt": None},
@@ -88,58 +89,39 @@ async def create_ad(
         result = await ads_collection.insert_one(ad_data)
         ad_id = str(result.inserted_id)
 
+        # 2️⃣ Upload images with watermark to Cloudinary
         if images:
-            # 2️⃣ Upload images to Cloudinary
             image_urls = save_uploaded_images(images, cloud_folder=f"ads/{ad_id}")
             await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
 
-        # 3️⃣ Pricing logic
-        pricing_doc = await ad_pricing_collection.find_one({})
-        if not pricing_doc:
-            raise HTTPException(status_code=404, detail="Pricing data not found")
+        # 3️⃣ Validate coupon (only allow matching price IDs)
+        coupon_map = {
+            "top_add_discount": ["price_1Rej1nFmEwmsRUeMAgsgKGSB"],
+            "carosal_discount": ["price_1Rej2AFmEwmsRUeMEqUykBXQ"],
+            "base discount": ["price_1Rej2UFmEwmsRUeM8R0Pm0vD"]
+        }
 
-        ad_settings = ad_data.get("adSettings", {})
-        is_top = ad_settings.get("isTopAd", False)
-        is_carousal = ad_settings.get("isCarousalAd", False)
-        ad_types = []
-        if is_top:
-            ad_types.append("top_add_price")
-        if is_carousal:
-            ad_types.append("carosal_add_price")
-        if not ad_types:
-            ad_types.append("base_price")
+        if coupon_code:
+            allowed_prices = coupon_map.get(coupon_code.lower())
+            if allowed_prices:
+                for pid in price_ids:
+                    if pid not in allowed_prices:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Coupon '{coupon_code}' is not valid for selected ad type."
+                        )
 
-        now_date = now.date()
-        effective_price_total = 0
-
-        for ad_type in ad_types:
-            type_data = pricing_doc.get(ad_type)
-            if not type_data:
-                raise HTTPException(status_code=404, detail=f"No pricing info for ad type '{ad_type}'")
-
-            price = type_data.get("price", 0)
-            discount = type_data.get("discount_applied")
-
-            if discount:
-                start = datetime.strptime(discount["start_date"], "%Y-%m-%d").date()
-                end = datetime.strptime(discount["end_date"], "%Y-%m-%d").date()
-                if start <= now_date <= end:
-                    percent = discount.get("value_percent", 0)
-                    price = round(price * (1 - percent / 100), 2)
-
-            effective_price_total += price
-
-        # 4️⃣ Call payment service (like you're doing)
+        # 4️⃣ Call payment service
         backend_url = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
         payment_payload = {
             "ad_id": ad_id,
-            "ad_type":  ", ".join(ad_types),
-            "amount": effective_price_total,  # send the calculated amount to payment service
-            "currency": "usd",  # always better to pass currency
+            "price_ids": price_ids,
+            "currency": "usd",
             "description": ad_data.get("business", {}).get("description", "Ad Payment"),
             "customer_email": email,
-            "customer_name": f"{user.get('first_name', '')} {user.get('last_name', '')}"
+            "customer_name": f"{user.get('first_name', '')} {user.get('last_name', '')}",
+            "coupon_code": coupon_code
         }
 
         try:
@@ -147,15 +129,16 @@ async def create_ad(
             payment_response.raise_for_status()
             payment_info = payment_response.json()
         except Exception as e:
-            # 🛑 Rollback if payment service call failed
-            if ad_id:
-                await ads_collection.delete_one({"_id": ad_id})
-            if image_folder and os.path.exists(image_folder):
-                import shutil
-                shutil.rmtree(image_folder)
+            await ads_collection.delete_one({"_id": result.inserted_id})
+            for url in image_urls:
+                try:
+                    parts = url.split("/")
+                    public_id = "/".join(parts[parts.index("ads"):-1]) + "/" + parts[-1].split(".")[0]
+                    cloudinary.uploader.destroy(public_id)
+                except Exception as ce:
+                    print(f"Failed to delete Cloudinary image: {ce}")
             raise HTTPException(status_code=500, detail=f"Payment initiation failed: {str(e)}")
 
-        # 5️⃣ Return response
         return {
             "message": "Ad created successfully, waiting for payment",
             "adId": ad_id,
@@ -164,12 +147,15 @@ async def create_ad(
         }
 
     except Exception as e:
-        # Global fallback rollback
         if ad_id:
-            await ads_collection.delete_one({"_id": ad_id})
-        if image_folder and os.path.exists(image_folder):
-            import shutil
-            shutil.rmtree(image_folder)
+            await ads_collection.delete_one({"_id": ObjectId(ad_id)})
+        for url in image_urls:
+            try:
+                parts = url.split("/")
+                public_id = "/".join(parts[parts.index("ads"):-1]) + "/" + parts[-1].split(".")[0]
+                cloudinary.uploader.destroy(public_id)
+            except Exception as ce:
+                print(f"Cleanup failed for Cloudinary image: {ce}")
         raise HTTPException(status_code=500, detail=f"Creation failed: {str(e)}")
 
 @ads_router.delete(
@@ -591,3 +577,39 @@ async def find_nearby_restaurants(
             )
 
     return nearby_ads
+@ads_router.post("/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)}")
+
+    # ✅ Payment completed
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        ad_id = session.get("metadata", {}).get("ad_id")
+
+        if ad_id:
+            print(f"✅ Payment success for ad {ad_id}")
+            await ads_collection.update_one(
+                {"_id": ObjectId(ad_id)},
+                {"$set": {"visibility": "visible", "updatedAt": datetime.utcnow()}}
+            )
+
+    elif event["type"] == "checkout.session.expired":
+        print("⚠️ Session expired:", event["data"]["object"]["id"])
+
+    elif event["type"] == "payment_intent.payment_failed":
+        print("❌ Payment failed:", event["data"]["object"]["id"])
+
+    else:
+        print("📦 Unhandled event:", event["type"])
+
+    return {"status": "success"}

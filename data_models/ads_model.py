@@ -1,3 +1,4 @@
+from fastapi import Form
 from pydantic import BaseModel, EmailStr, HttpUrl, Field
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -141,6 +142,7 @@ class AdCreateSchema(BaseModel):
     schedule: Schedule
     adSettings: AdSettings
     videoUrl: Optional[HttpUrl]
+    coupon_code: Optional[str] = Form(default=None),
 
     class Config:
         schema_extra = {
