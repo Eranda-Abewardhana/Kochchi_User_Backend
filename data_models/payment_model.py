@@ -9,3 +9,6 @@ class PaymentRequest(BaseModel):
     description: str = Field(...)
     customer_name: str = Field(...)
     customer_email: str = Field(...)
+
+class RefundRequest(BaseModel):
+    payment_intent_id: str

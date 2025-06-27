@@ -22,29 +22,42 @@ stripe.api_key = STRIPE_SECRET_KEY
 @payment_router.post("/initiate")
 async def initiate_payment(data: PaymentRequest):
     try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency": data.currency.lower(),
-                    "unit_amount": int(data.amount * 100),
-                    "product_data": {
-                        "name": data.description,
-                    },
-                },
-                "quantity": 1,
-            }],
-            customer_email=data.customer_email,
-            mode="payment",
-            success_url=SUCCESS_URL,
-            cancel_url=CANCEL_URL,
-        )
-        return {"checkout_url": session.url, "session_id": session.id}
+        # Convert each price_id into a line_item
+        line_items = [{"price": pid, "quantity": 1} for pid in data.price_ids]
+
+        checkout_params = {
+            "payment_method_types": ["card"],
+            "line_items": line_items,
+            "mode": "payment",
+            "customer_email": data.customer_email,
+            "success_url": SUCCESS_URL,
+            "cancel_url": CANCEL_URL,
+            "metadata": {
+                "ad_id": data.ad_id,
+                "customer_name": data.customer_name
+            }
+        }
+
+        if data.coupon_code:
+            promo_codes = stripe.PromotionCode.list(code=data.coupon_code, active=True)
+            if not promo_codes.data:
+                raise HTTPException(status_code=400, detail="Invalid or expired coupon code")
+            coupon_id = promo_codes.data[0]["id"]
+            checkout_params["discounts"] = [{"promotion_code": coupon_id}]
+
+        session = stripe.checkout.Session.create(**checkout_params)
+
+        return {
+            "checkout_url": session.url,
+            "session_id": session.id
+        }
+
     except Exception as e:
-        print(f"Stripe error during initiation: {e}")
+        print(f"Stripe initiation error: {e}")
         raise HTTPException(status_code=500, detail="Failed to initiate payment")
 
-# Webhook callback for Stripe events
+
+# --- Stripe Webhook to Handle Events ---
 @payment_router.post("/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
@@ -55,22 +68,19 @@ async def stripe_webhook(request: Request):
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except stripe.error.SignatureVerificationError:
-        print("Invalid webhook signature")
-        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+        raise HTTPException(status_code=400, detail="Invalid signature")
     except Exception as e:
         print(f"Webhook error: {e}")
-        raise HTTPException(status_code=400, detail="Webhook processing failed")
+        raise HTTPException(status_code=400, detail="Webhook error")
 
-    # Process event types
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        print("✅ Payment completed:", session)
+        ad_id = session["metadata"].get("ad_id")
+        print(f"✅ Payment complete for ad ID: {ad_id}")
+
+        # TODO: Update your ad as paid in database here
 
     return {"status": "success"}
-
-# Refund (Rollback) payment request
-class RefundRequest(BaseModel):
-    payment_intent_id: str  # This comes from Stripe after payment
 
 @payment_router.post("/refund")
 async def refund_payment(refund_request: RefundRequest):
@@ -78,5 +88,5 @@ async def refund_payment(refund_request: RefundRequest):
         refund = stripe.Refund.create(payment_intent=refund_request.payment_intent_id)
         return {"status": "refund_initiated", "refund_id": refund.id}
     except Exception as e:
-        print(f"Refund failed: {e}")
+        print(f"Refund error: {e}")
         raise HTTPException(status_code=500, detail="Refund failed")

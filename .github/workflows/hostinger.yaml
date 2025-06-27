@@ -78,6 +78,8 @@ jobs:
             echo "CLOUD_NAME=${{ secrets.CLOUD_NAME }}" >> .env
             echo "CLOUD_API_KEY=${{ secrets.CLOUD_API_KEY }}" >> .env
             echo "CLOUD_API_SECRET=${{ secrets.CLOUD_API_SECRET }}" >> .env
+            echo "CANCEL_URL =${{ secrets.CANCEL_URL  }}" >> .env
+            echo "SUCCESS_URL =${{ secrets.SUCCESS_URL  }}" >> .env
 
 
             echo "✅ .env created"
