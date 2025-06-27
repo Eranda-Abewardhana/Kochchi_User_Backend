@@ -165,9 +165,9 @@ async def create_ad(
     "/{ad_id}",
     response_model=AdDeleteResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_200_OK
 )
-async def delete_ad(ad_id: str,  current_user: dict = Depends(get_admin_or_super())):
+async def delete_ad(ad_id: str,  current_user: dict = Depends(get_current_user)):
     try:
         obj_id = ObjectId(ad_id)
     except Exception:
