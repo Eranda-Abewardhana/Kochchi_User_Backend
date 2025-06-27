@@ -15,7 +15,7 @@ from utils.auth.jwt_functions import get_admin_or_super
 competition_router = APIRouter(prefix="/competition", tags=["Competition"])
 competition_collection = db["competitions"]
 # Base path for storing images
-BASE_IMAGE_PATH = "data_sources/competition"
+BASE_IMAGE_PATH = os.path.join("data_sources", "competition")
 
 # ---Get not completed competitions---
 @competition_router.get("/not-completed", response_model=List[Competition])
@@ -94,9 +94,8 @@ async def create_competition(
 
         # Handle image uploads
         if images:
-            folder = os.path.join(BASE_IMAGE_PATH, competition_id)
-            os.makedirs(folder, exist_ok=True)
-            image_urls = save_uploaded_images(images, folder)
+            # 2️⃣ Upload images to Cloudinary
+            image_urls = save_uploaded_images(images, cloud_folder=f"competition/{competition_id}")
             if image_urls:
                 await competition_collection.update_one(
                     {"_id": result.inserted_id},

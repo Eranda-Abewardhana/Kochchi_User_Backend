@@ -40,13 +40,11 @@ async def create_blog(
 
         # Handle image upload if images are provided
         if images and len(images) > 0:
-            # Create folder for this blog's images
-            image_folder = os.path.join(BASE_IMAGE_PATH, blog_id)
-            os.makedirs(image_folder, exist_ok=True)
-
-            # Save images and get URLs
-            image_urls = save_uploaded_images(images, image_folder)
-
+            # Upload watermarked images to Cloudinary under folder 'dansals/{dansal_id}'
+            image_urls = save_uploaded_images(
+                images,
+                cloud_folder=f"blogs/{blog_id}"
+            )
             # Store only the first image URL in imgUrl field
             first_image_url = image_urls[0] if image_urls else None
 

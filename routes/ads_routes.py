@@ -16,7 +16,7 @@ from data_models.ads_model import (
     ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema
 )
 from services.distance_radius_calculator import calculate_distance
-from services.file_upload_service import save_uploaded_images
+from services.file_upload_service import save_uploaded_images, upload_image_to_cloudinary
 from fastapi.security import OAuth2PasswordBearer
 from utils.auth.jwt_functions import decode_token, get_admin_or_super
 from datetime import timedelta
@@ -88,14 +88,10 @@ async def create_ad(
         result = await ads_collection.insert_one(ad_data)
         ad_id = str(result.inserted_id)
 
-        # 2️⃣ Save images
-        if not os.path.exists(BASE_IMAGE_PATH):
-            os.makedirs(BASE_IMAGE_PATH)
-        image_folder = os.path.join(BASE_IMAGE_PATH, ad_id)
-        os.makedirs(image_folder, exist_ok=True)
-
-        image_urls = save_uploaded_images(images, image_folder)
-        await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
+        if images:
+            # 2️⃣ Upload images to Cloudinary
+            image_urls = save_uploaded_images(images, cloud_folder=f"ads/{ad_id}")
+            await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
 
         # 3️⃣ Pricing logic
         pricing_doc = await ad_pricing_collection.find_one({})
