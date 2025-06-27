@@ -19,8 +19,8 @@ services:
     command: mongod --auth --bind_ip_all
     restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: superadmin
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongodb_data:/data/db
     networks:
