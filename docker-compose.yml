@@ -8,6 +8,8 @@ services:
     restart: always
     env_file:
       - .env
+    volumes:
+      - ./data_sources:/app/data_sources
     networks:
       - internal
 
