@@ -75,6 +75,11 @@ jobs:
             echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" >> .env
             echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> .env
             echo "REQUIRED_COLLECTIONS=${{ secrets.REQUIRED_COLLECTIONS }}" >> .env
+                  - name: Add Cloudinary Secrets to .env        
+            echo "CLOUD_NAME=${{ secrets.CLOUD_NAME }}" >> .env
+            echo "CLOUD_API_KEY=${{ secrets.CLOUD_API_KEY }}" >> .env
+            echo "CLOUD_API_SECRET=${{ secrets.CLOUD_API_SECRET }}" >> .env
+
 
             echo "✅ .env created"
 
