@@ -55,7 +55,7 @@ webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
     status_code=status.HTTP_201_CREATED
 )
 async def create_ad(
-    ad_json: str = Form(...),
+    data: AdCreateSchema,
     images: List[UploadFile] = File(...),
     coupon_code: Optional[str] = Form(default=None),
     current_user: dict = Depends(get_current_user)
