@@ -28,7 +28,8 @@ async def initiate_payment(data: PaymentRequest):
         checkout_params = {
             "payment_method_types": ["card"],
             "line_items": line_items,
-            "mode": "payment",
+            # "mode": "payment",
+            "mode": "subscription",
             "customer_email": data.customer_email,
             "success_url": SUCCESS_URL,
             "cancel_url": CANCEL_URL,
