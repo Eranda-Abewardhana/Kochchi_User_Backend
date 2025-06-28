@@ -9,6 +9,9 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, De
 from typing import List, Optional, Annotated
 from bson import ObjectId
 from datetime import datetime
+
+from pydantic import ValidationError
+
 from databases.mongo import db
 from data_models.ads_model import (
     AdCreateResponse,
@@ -486,7 +489,6 @@ async def get_full_top_ads(
     }
 @ads_router.get("/carousal-ads", response_model=List[AdOut])
 async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
-    # 🔍 Query for carousal + visible ads
     cursor = ads_collection.find({
         "adSettings.isCarousalAd": True,
         "visibility": "visible"
@@ -497,15 +499,18 @@ async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
     if not ads:
         raise HTTPException(status_code=404, detail="No carousal ads found")
 
-    # 🔀 Shuffle and take first 8
     random.shuffle(ads)
     selected = ads[:8]
 
-    # 🔁 Convert to Pydantic model with ad_id
     result = []
     for ad in selected:
-        ad["ad_id"] = str(ad["_id"])  # Inject adId field
-        result.append(AdOut(**ad))
+        ad["ad_id"] = str(ad["_id"])
+
+        try:
+            result.append(AdOut(**ad))
+        except ValidationError as e:
+            print(f"Validation error for ad {ad.get('_id')}: {e}")
+            continue  # Skip invalid ads
 
     return result
 @ads_router.get("/sorted-all", response_model=List[AdListingPreview])
