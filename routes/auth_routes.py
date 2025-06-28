@@ -182,7 +182,7 @@ async def login_user(credentials: LoginRequest):
         "access_token": token,
         "token_type": "bearer",
         "role": user["role"],
-        "username": user.get("username")
+        "username": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
     }
 
 # ---------------- Google Login (Regular Users Only) ----------------
