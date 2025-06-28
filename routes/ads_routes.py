@@ -2,12 +2,16 @@ import os
 import random
 import shutil
 import json
+import cloudinary.uploader
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, Query, Body
 from typing import List, Optional, Annotated
 from bson import ObjectId
 from datetime import datetime
+
+from pydantic import ValidationError
+
 from databases.mongo import db
 from data_models.ads_model import (
     AdCreateResponse,
@@ -15,10 +19,18 @@ from data_models.ads_model import (
     AdApprovalResponse,
     ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema
 )
+from fastapi import Query, Depends, HTTPException
+from typing import List
+import random
+from fastapi import APIRouter, Request, HTTPException
+import stripe
+import os
+from datetime import datetime
+from bson import ObjectId
 from services.distance_radius_calculator import calculate_distance
-from services.file_upload_service import save_uploaded_images
+from services.file_upload_service import save_uploaded_images, upload_image_to_cloudinary
 from fastapi.security import OAuth2PasswordBearer
-from utils.auth.jwt_functions import decode_token, get_admin_or_super
+from utils.auth.jwt_functions import decode_token, get_admin_or_super, get_current_user
 from datetime import timedelta
 
 ads_router = APIRouter(prefix="/ads", tags=["Ads"])
@@ -34,7 +46,7 @@ BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # Load environment variables
 load_dotenv()
-
+webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 @ads_router.post(
     "/create",
     response_model=AdCreateResponse,
@@ -42,7 +54,8 @@ load_dotenv()
         400: {"model": ErrorResponse},
         422: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+    status_code=status.HTTP_201_CREATED
 )
 @ads_router.post(
     "/create",
@@ -51,15 +64,16 @@ load_dotenv()
         400: {"model": ErrorResponse},
         422: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+    status_code=status.HTTP_201_CREATED
 )
 async def create_ad(
-    ad_json: str = Form(...),
+    data: AdCreateSchema = Depends(),  # Accept body as form-data or JSON
     images: List[UploadFile] = File(...),
-    token: str = Depends(oauth2_scheme),
-    docs_model: Optional[AdCreateSchema] = Body(default=None)
+    coupon_code: Optional[str] = Form(default=None),
+    current_user: dict = Depends(get_current_user)
 ):
-    email = decode_token(token)
+    email = current_user['email']
     if not email:
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -68,82 +82,47 @@ async def create_ad(
         raise HTTPException(status_code=401, detail="Invalid user")
 
     ad_id = None
-    image_folder = None
+    image_urls = []
 
     try:
-        # Parse input JSON
-        ad_data = json.loads(ad_json)
+        ad_data = data.dict()
         now = datetime.utcnow()
         expiry = now + timedelta(days=31)
+
+        price_ids = ad_data.get("adSettings", {}).get("price_ids", [])
+        if not price_ids:
+            raise HTTPException(status_code=400, detail="No Stripe price IDs provided")
 
         ad_data.update({
             "approval": {"status": "pending", "adminId": None, "adminComment": None, "approvedAt": None},
             "reactions": {"likes": {"count": 0, "userIds": []}, "unlikes": {"count": 0, "userIds": []}},
             "recommendations": {"count": 0, "userIds": []},
             "visibility": "hidden",
-            "createdAt": now, "updatedAt": now, "expiryDate": expiry
+            "createdAt": now,
+            "updatedAt": now,
+            "expiryDate": expiry
         })
 
-        # 1️⃣ Insert ad document
+        # 1️⃣ Insert ad
         result = await ads_collection.insert_one(ad_data)
         ad_id = str(result.inserted_id)
 
-        # 2️⃣ Save images
-        if not os.path.exists(BASE_IMAGE_PATH):
-            os.makedirs(BASE_IMAGE_PATH)
-        image_folder = os.path.join(BASE_IMAGE_PATH, ad_id)
-        os.makedirs(image_folder, exist_ok=True)
+        # 2️⃣ Upload images
+        if images:
+            image_urls = save_uploaded_images(images, cloud_folder=f"ads/{ad_id}")
+            await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
 
-        image_urls = save_uploaded_images(images, image_folder)
-        await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
-
-        # 3️⃣ Pricing logic
-        pricing_doc = await ad_pricing_collection.find_one({})
-        if not pricing_doc:
-            raise HTTPException(status_code=404, detail="Pricing data not found")
-
-        ad_settings = ad_data.get("adSettings", {})
-        is_top = ad_settings.get("isTopAd", False)
-        is_carousal = ad_settings.get("isCarousalAd", False)
-        ad_types = []
-        if is_top:
-            ad_types.append("top_add_price")
-        if is_carousal:
-            ad_types.append("carosal_add_price")
-        if not ad_types:
-            ad_types.append("base_price")
-
-        now_date = now.date()
-        effective_price_total = 0
-
-        for ad_type in ad_types:
-            type_data = pricing_doc.get(ad_type)
-            if not type_data:
-                raise HTTPException(status_code=404, detail=f"No pricing info for ad type '{ad_type}'")
-
-            price = type_data.get("price", 0)
-            discount = type_data.get("discount_applied")
-
-            if discount:
-                start = datetime.strptime(discount["start_date"], "%Y-%m-%d").date()
-                end = datetime.strptime(discount["end_date"], "%Y-%m-%d").date()
-                if start <= now_date <= end:
-                    percent = discount.get("value_percent", 0)
-                    price = round(price * (1 - percent / 100), 2)
-
-            effective_price_total += price
-
-        # 4️⃣ Call payment service (like you're doing)
+        # 3️⃣ Prepare and trigger payment
         backend_url = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
         payment_payload = {
             "ad_id": ad_id,
-            "ad_type":  ", ".join(ad_types),
-            "amount": effective_price_total,  # send the calculated amount to payment service
-            "currency": "usd",  # always better to pass currency
+            "price_ids": price_ids,
+            "currency": "usd",
             "description": ad_data.get("business", {}).get("description", "Ad Payment"),
             "customer_email": email,
-            "customer_name": f"{user.get('first_name', '')} {user.get('last_name', '')}"
+            "customer_name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
+            "coupon_code": coupon_code
         }
 
         try:
@@ -151,15 +130,16 @@ async def create_ad(
             payment_response.raise_for_status()
             payment_info = payment_response.json()
         except Exception as e:
-            # 🛑 Rollback if payment service call failed
-            if ad_id:
-                await ads_collection.delete_one({"_id": ad_id})
-            if image_folder and os.path.exists(image_folder):
-                import shutil
-                shutil.rmtree(image_folder)
+            await ads_collection.delete_one({"_id": result.inserted_id})
+            for url in image_urls:
+                try:
+                    parts = url.split("/")
+                    public_id = "/".join(parts[parts.index("ads"):-1]) + "/" + parts[-1].split(".")[0]
+                    cloudinary.uploader.destroy(public_id)
+                except Exception as ce:
+                    print(f"Failed to delete Cloudinary image: {ce}")
             raise HTTPException(status_code=500, detail=f"Payment initiation failed: {str(e)}")
 
-        # 5️⃣ Return response
         return {
             "message": "Ad created successfully, waiting for payment",
             "adId": ad_id,
@@ -168,20 +148,25 @@ async def create_ad(
         }
 
     except Exception as e:
-        # Global fallback rollback
         if ad_id:
-            await ads_collection.delete_one({"_id": ad_id})
-        if image_folder and os.path.exists(image_folder):
-            import shutil
-            shutil.rmtree(image_folder)
+            await ads_collection.delete_one({"_id": ObjectId(ad_id)})
+        for url in image_urls:
+            try:
+                parts = url.split("/")
+                public_id = "/".join(parts[parts.index("ads"):-1]) + "/" + parts[-1].split(".")[0]
+                cloudinary.uploader.destroy(public_id)
+            except Exception as ce:
+                print(f"Cleanup failed for Cloudinary image: {ce}")
         raise HTTPException(status_code=500, detail=f"Creation failed: {str(e)}")
+
 
 @ads_router.delete(
     "/{ad_id}",
     response_model=AdDeleteResponse,
-    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    status_code=status.HTTP_200_OK
 )
-async def delete_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
+async def delete_ad(ad_id: str,  current_user: dict = Depends(get_current_user)):
     try:
         obj_id = ObjectId(ad_id)
     except Exception:
@@ -204,14 +189,14 @@ async def delete_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
 @ads_router.post(
     "/{ad_id}/approve",
     response_model=AdApprovalResponse,
-    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+status_code=status.HTTP_201_CREATED
 )
 async def approve_ad_by_admin(
     ad_id: str,
     status: str = Form(...),
     comment: Optional[str] = Form(None),
-    current_user: dict = Depends(get_admin_or_super),
-    token: str = Depends(oauth2_scheme)
+    current_user: dict = Depends(get_admin_or_super)
 ):
     # Validate status input
     if status not in ["approved", "rejected"]:
@@ -262,8 +247,8 @@ async def approve_ad_by_admin(
 
 
 
-@ads_router.get("/approve")
-async def get_approved_ads(token: str = Depends(oauth2_scheme)):
+@ads_router.get("/approve",status_code=status.HTTP_201_CREATED)
+async def get_approved_ads( current_user: dict = Depends(get_current_user)):
     ads = await ads_collection.find({"approval.status": "approved"}).to_list(100)
     result = [
         {
@@ -277,10 +262,10 @@ async def get_approved_ads(token: str = Depends(oauth2_scheme)):
     return result
 
 
-@ads_router.get("/my", responses={401: {"model": ErrorResponse}})
-async def get_my_ads(token: str = Depends(oauth2_scheme)):
+@ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_201_CREATED)
+async def get_my_ads( current_user: dict = Depends(get_current_user)):
     try:
-        email = decode_token(token)
+        email = current_user['email']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -296,8 +281,8 @@ async def get_my_ads(token: str = Depends(oauth2_scheme)):
     ]
 
 
-@ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}})
-async def get_ad_details(ad_id: str, token: str = Depends(oauth2_scheme)):
+@ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},status_code=status.HTTP_200_OK)
+async def get_ad_details(ad_id: str,  current_user: dict = Depends(get_current_user)):
     try:
         obj_id = ObjectId(ad_id)
     except Exception:
@@ -318,11 +303,12 @@ async def get_ad_details(ad_id: str, token: str = Depends(oauth2_scheme)):
         401: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+status_code=status.HTTP_200_OK
 )
-async def like_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
+async def like_ad(ad_id: str,  current_user: dict = Depends(get_current_user)):
     try:
-        user_id = decode_token(token)
+        user_id = current_user['user_id']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -369,11 +355,12 @@ async def like_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
         401: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+    status_code=status.HTTP_200_OK
 )
-async def unlike_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
+async def unlike_ad(ad_id: str,  current_user: dict = Depends(get_current_user)):
     try:
-        user_id = decode_token(token)
+        user_id = current_user['user_id']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -421,12 +408,13 @@ async def unlike_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
         404: {"model": ErrorResponse},
         401: {"model": ErrorResponse},
         500: {"model": ErrorResponse}
-    }
+    },
+    status_code=status.HTTP_200_OK
 )
-async def recommend_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
+async def recommend_ad(ad_id: str, current_user: dict = Depends(get_current_user)):
     # Step 1: Decode user
     try:
-        user_id = decode_token(token)
+        user_id = current_user['user_id']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -459,13 +447,9 @@ async def recommend_ad(ad_id: str, token: str = Depends(oauth2_scheme)):
 
     return {"message": "Ad recommended successfully"}
 
-from fastapi import Query, Depends, HTTPException
-from typing import List
-import random
-
 @ads_router.get("/top-full-ads", response_model=PaginatedAdResponse)
 async def get_full_top_ads(
-    token: str = Depends(oauth2_scheme),
+    current_user: dict = Depends(get_current_user),
     page: int = Query(1, ge=1)
 ):
     PAGE_SIZE = 24
@@ -504,8 +488,7 @@ async def get_full_top_ads(
         "results": results
     }
 @ads_router.get("/carousal-ads", response_model=List[AdOut])
-async def get_carousal_ads(token: str = Depends(oauth2_scheme)):
-    # 🔍 Query for carousal + visible ads
+async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
     cursor = ads_collection.find({
         "adSettings.isCarousalAd": True,
         "visibility": "visible"
@@ -516,19 +499,22 @@ async def get_carousal_ads(token: str = Depends(oauth2_scheme)):
     if not ads:
         raise HTTPException(status_code=404, detail="No carousal ads found")
 
-    # 🔀 Shuffle and take first 8
     random.shuffle(ads)
     selected = ads[:8]
 
-    # 🔁 Convert to Pydantic model with ad_id
     result = []
     for ad in selected:
-        ad["ad_id"] = str(ad["_id"])  # Inject adId field
-        result.append(AdOut(**ad))
+        ad["ad_id"] = str(ad["_id"])
+
+        try:
+            result.append(AdOut(**ad))
+        except ValidationError as e:
+            print(f"Validation error for ad {ad.get('_id')}: {e}")
+            continue  # Skip invalid ads
 
     return result
 @ads_router.get("/sorted-all", response_model=List[AdListingPreview])
-async def get_all_ads_sorted_by_priority(token: str = Depends(oauth2_scheme)):
+async def get_all_ads_sorted_by_priority(current_user: dict = Depends(get_current_user)):
     all_ads = []
 
     async for ad in ads_collection.find({"visibility": "visible"}):
@@ -565,8 +551,7 @@ async def find_nearby_restaurants(
     lat: float = Query(..., description="Your latitude"),
     lng: float = Query(..., description="Your longitude"),
     max_distance_km: float = Query(10.0, description="Search radius in kilometers"),
-    token: str = Depends(oauth2_scheme)
-):
+    current_user: dict = Depends(get_current_user)):
     nearby_ads = []
 
     async for ad in ads_collection.find({"category": "Restaurants", "visibility": "visible"}):
@@ -595,3 +580,39 @@ async def find_nearby_restaurants(
             )
 
     return nearby_ads
+@ads_router.post("/webhook")
+async def stripe_webhook(request: Request, current_user: dict = Depends(get_current_user)):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)}")
+
+    # ✅ Payment completed
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        ad_id = session.get("metadata", {}).get("ad_id")
+
+        if ad_id:
+            print(f"✅ Payment success for ad {ad_id}")
+            await ads_collection.update_one(
+                {"_id": ObjectId(ad_id)},
+                {"$set": {"visibility": "visible", "updatedAt": datetime.utcnow()}}
+            )
+
+    elif event["type"] == "checkout.session.expired":
+        print("⚠️ Session expired:", event["data"]["object"]["id"])
+
+    elif event["type"] == "payment_intent.payment_failed":
+        print("❌ Payment failed:", event["data"]["object"]["id"])
+
+    else:
+        print("📦 Unhandled event:", event["type"])
+
+    return {"status": "success"}

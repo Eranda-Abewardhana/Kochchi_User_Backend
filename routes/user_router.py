@@ -33,6 +33,7 @@ async def update_user_profile(
 ):
     email = decode_token(token)
     user = await users_collection.find_one({"email": email})
+    user_id = str(user.inserted_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
@@ -47,12 +48,12 @@ async def update_user_profile(
     
     # Handle profile picture upload
     if profile_pic:
-        # Create user-specific folder for profile pictures
-        user_folder = os.path.join(BASE_IMAGE_PATH, "users", email.replace("@", "_at_"))
-        os.makedirs(user_folder, exist_ok=True)
-        
+
         # Save the uploaded image
-        image_urls = save_uploaded_images([profile_pic], user_folder)
+        # 2️⃣ Upload images to Cloudinary
+        profile_pics = []
+        profile_pics.append(profile_pic)
+        image_urls = save_uploaded_images(profile_pics, cloud_folder=f"profile_pics/{user_id}")
         if image_urls:
             update_data["profile_pic"] = image_urls[0]
     

@@ -1,78 +1,86 @@
 import os
-import shutil
 import uuid
+import io  # FIX: import correctly
 from typing import List
 from fastapi import UploadFile
-from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw, ImageFont
+import cloudinary
+import cloudinary.uploader
 
-# Environment variables (load directly from docker environment)
+# --- Load environment variables ---
 BASE_URL = os.getenv("BASE_URL", "http://localhost")
 PORT = os.getenv("PORT")
 
-# Build full BASE_URL with port if not already included
+cloudinary.config(
+    cloud_name=os.getenv("CLOUD_NAME"),
+    api_key=os.getenv("CLOUD_API_KEY"),
+    api_secret=os.getenv("CLOUD_API_SECRET")
+)
+
 if PORT and f":{PORT}" not in BASE_URL:
     BASE_URL = f"{BASE_URL.rstrip('/')}:{PORT}"
 
-def add_watermark(img_path: str, text: str = "kochchibazaar") -> str:
+# --- Watermark in memory ---
+def add_watermark(image: Image.Image, text: str = "kochchibazaar") -> io.BytesIO:
     """
-    Adds a transparent watermark text to the center of the image.
-    Returns the path of the watermarked image.
+    Adds a transparent watermark to the center of the PIL image.
+    Returns watermarked image as BytesIO.
     """
+    base = image.convert("RGBA")
+    W, H = base.size
     try:
-        with Image.open(img_path).convert("RGBA") as base:
-            W, H = base.size
-            try:
-                # Use built-in font if system font is not available
-                font = ImageFont.truetype("arialbd.ttf", int(W * 0.11))
-            except:
-                font = ImageFont.load_default()
+        font = ImageFont.truetype("arialbd.ttf", int(W * 0.11))
+    except:
+        font = ImageFont.load_default()
 
-            txt_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
-            draw = ImageDraw.Draw(txt_layer)
-            bbox = draw.textbbox((0, 0), text, font=font)
-            x = (W - (bbox[2] - bbox[0])) // 2
-            y = (H - (bbox[3] - bbox[1])) // 2
+    txt_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(txt_layer)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    x = (W - (bbox[2] - bbox[0])) // 2
+    y = (H - (bbox[3] - bbox[1])) // 2
+    draw.text((x, y), text, font=font, fill=(255, 255, 255, 100))
 
-            draw.text((x, y), text, font=font, fill=(255, 255, 255, 100))
-            watermarked = Image.alpha_composite(base, txt_layer).convert("RGB")
+    watermarked = Image.alpha_composite(base, txt_layer).convert("RGB")
+    output = io.BytesIO()
+    watermarked.save(output, format="JPEG")
+    output.seek(0)
+    return output
 
-            watermarked_path = f"{os.path.splitext(img_path)[0]}_watermarked{os.path.splitext(img_path)[1]}"
-            watermarked.save(watermarked_path)
-
-            return watermarked_path
-
-    except Exception as e:
-        print(f"Watermarking failed for {img_path}: {e}")
-        return img_path  # fallback to original image path
-
-def save_uploaded_images(images: List[UploadFile], target_folder: str) -> List[str]:
-    """
-    Saves uploaded images to disk with watermark applied, and returns list of public URLs.
-    """
-    os.makedirs(target_folder, exist_ok=True)
+# --- Upload directly to Cloudinary ---
+def save_uploaded_images(images: List[UploadFile], cloud_folder: str = "uploads") -> List[str]:
     image_urls = []
 
     for image in images:
         try:
-            original_filename = image.filename.strip() if image.filename else None
-            filename = secure_filename(original_filename) if original_filename else f"{uuid.uuid4().hex}.jpg"
-            file_path = os.path.join(target_folder, filename)
+            image_data = image.file.read()
+            pil_image = Image.open(io.BytesIO(image_data))
+            watermarked_io = add_watermark(pil_image)
 
-            # Save uploaded file
-            with open(file_path, "wb") as f:
-                shutil.copyfileobj(image.file, f)
-
-            # Apply watermark
-            watermarked_path = add_watermark(file_path)
-
-            # Generate URL
-            relative_path = os.path.relpath(watermarked_path).replace(os.sep, "/")
-            full_url = f"{BASE_URL.rstrip('/')}/{relative_path}"
-            image_urls.append(full_url)
-
+            response = cloudinary.uploader.upload(
+                watermarked_io,
+                folder=cloud_folder,
+                use_filename=True,
+                unique_filename=False,
+                public_id=image.filename or str(uuid.uuid4())
+            )
+            image_urls.append(response["secure_url"])
         except Exception as e:
             print(f"Error processing file '{image.filename}': {e}")
             continue
 
     return image_urls
+
+# --- Optional: Upload by image path ---
+def upload_image_to_cloudinary(image_path: str, folder: str = "uploads") -> str:
+    try:
+        response = cloudinary.uploader.upload(
+            image_path,
+            folder=folder,
+            use_filename=True,
+            unique_filename=False
+        )
+        print("Upload successful.")
+        return response["secure_url"]
+    except Exception as e:
+        print("Upload failed:", e)
+        return None

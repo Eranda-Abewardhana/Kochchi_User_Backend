@@ -1,11 +1,17 @@
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, List, Optional
+
 
 class PaymentRequest(BaseModel):
-    ad_id: str = Field(...)  # MongoDB ObjectId as string
-    ad_type: Literal["top", "normal"] = Field(...)  # restricts to valid options
-    amount: float = Field(...)  # now included explicitly
-    currency: str = Field(default="LKR")
-    description: str = Field(...)
-    customer_name: str = Field(...)
-    customer_email: str = Field(...)
+    ad_id: str
+    ad_type: Literal["top", "normal"]
+    amount: float
+    currency: str = "LKR"
+    description: str
+    customer_name: str
+    customer_email: str
+    price_ids: List[str]  # <-- Add this field
+    promotion_code_id: Optional[str] = None  # Optional coupon support
+
+class RefundRequest(BaseModel):
+    payment_intent_id: str

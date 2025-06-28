@@ -40,11 +40,11 @@ async def create_dansal(
 
         # Save images if any
         if images:
-            # Create folder for this dansal entry
-            dansal_folder = os.path.join(BASE_IMAGE_PATH, dansal_id)
-            os.makedirs(dansal_folder, exist_ok=True)
-
-            image_urls = save_uploaded_images(images, dansal_folder)
+            # Upload watermarked images to Cloudinary under folder 'dansals/{dansal_id}'
+            image_urls = save_uploaded_images(
+                images,
+                cloud_folder=f"dansals/{dansal_id}"
+            )
 
             # Update the DB with image URLs
             await dansal_collection.update_one(
