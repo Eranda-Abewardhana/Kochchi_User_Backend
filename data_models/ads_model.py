@@ -126,8 +126,23 @@ class AdListingPreview(BaseModel):
     contact_phone: Optional[str]
     priority_score: int
 
-class AdOut(AdBase):
-    adId: str = Field(..., alias="ad_id")
+class AdOut(BaseModel):
+    ad_id: str
+    title: Optional[str]
+    description: Optional[str]
+    business: Optional[Business]
+    adSettings: Optional[AdSettings]
+    images: Optional[List[HttpUrl]] = []  # or just List[str] if not using validated URLs
+    approval: Optional[Approval]
+    reactions: Optional[Reactions]
+    recommendations: Optional[Recommendations]
+    visibility: Optional[str]
+    createdAt: Optional[datetime]
+    updatedAt: Optional[datetime]
+    expiryDate: Optional[datetime]
+
+    class Config:
+        orm_mode = True
 
 class PaginatedAdResponse(BaseModel):
     page: int
