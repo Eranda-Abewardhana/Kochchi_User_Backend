@@ -22,13 +22,13 @@ stripe.api_key = STRIPE_SECRET_KEY
 @payment_router.post("/initiate")
 async def initiate_payment(data: PaymentRequest):
     try:
-        # Convert each price_id into a line_item
+        # 1. Build line items
         line_items = [{"price": pid, "quantity": 1} for pid in data.price_ids]
 
+        # 2. Build checkout session parameters
         checkout_params = {
             "payment_method_types": ["card"],
             "line_items": line_items,
-            # "mode": "payment",
             "mode": "subscription",
             "customer_email": data.customer_email,
             "success_url": SUCCESS_URL,
@@ -39,13 +39,18 @@ async def initiate_payment(data: PaymentRequest):
             }
         }
 
-        if data.coupon_code:
-            promo_codes = stripe.PromotionCode.list(code=data.coupon_code, active=True)
-            if not promo_codes.data:
-                raise HTTPException(status_code=400, detail="Invalid or expired coupon code")
-            coupon_id = promo_codes.data[0]["id"]
-            checkout_params["discounts"] = [{"promotion_code": coupon_id}]
+        # 3. If a promotion code was passed from frontend (as a string code), validate it
+        if data.promotion_code:
+            try:
+                promo_codes = stripe.PromotionCode.list(code=data.promotion_code, active=True)
+                if not promo_codes.data:
+                    raise HTTPException(status_code=400, detail="Invalid or expired promotion code")
+                checkout_params["discounts"] = [{"promotion_code": promo_codes.data[0]["id"]}]
+            except stripe.error.StripeError as e:
+                print(f"Stripe promotion code error: {e}")
+                raise HTTPException(status_code=400, detail="Stripe error validating promotion code")
 
+        # 4. Create the checkout session
         session = stripe.checkout.Session.create(**checkout_params)
 
         return {

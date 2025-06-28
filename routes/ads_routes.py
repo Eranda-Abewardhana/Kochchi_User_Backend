@@ -80,41 +80,27 @@ async def create_ad(
         if not price_ids:
             raise HTTPException(status_code=400, detail="No Stripe price IDs provided")
 
+        # Add metadata
         ad_data.update({
             "approval": {"status": "pending", "adminId": None, "adminComment": None, "approvedAt": None},
             "reactions": {"likes": {"count": 0, "userIds": []}, "unlikes": {"count": 0, "userIds": []}},
             "recommendations": {"count": 0, "userIds": []},
             "visibility": "hidden",
-            "createdAt": now, "updatedAt": now, "expiryDate": expiry
+            "createdAt": now,
+            "updatedAt": now,
+            "expiryDate": expiry
         })
 
-        # 1️⃣ Insert ad document
+        # 1️⃣ Insert ad
         result = await ads_collection.insert_one(ad_data)
         ad_id = str(result.inserted_id)
 
-        # 2️⃣ Upload images with watermark to Cloudinary
+        # 2️⃣ Upload images
         if images:
             image_urls = save_uploaded_images(images, cloud_folder=f"ads/{ad_id}")
             await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
 
-        # 3️⃣ Validate coupon (only allow matching price IDs)
-        coupon_map = {
-            "top_add_discount": ["price_1Rej1nFmEwmsRUeMAgsgKGSB"],
-            "carosal_discount": ["price_1Rej2AFmEwmsRUeMEqUykBXQ"],
-            "base discount": ["price_1Rej2UFmEwmsRUeM8R0Pm0vD"]
-        }
-
-        if coupon_code:
-            allowed_prices = coupon_map.get(coupon_code.lower())
-            if allowed_prices:
-                for pid in price_ids:
-                    if pid not in allowed_prices:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Coupon '{coupon_code}' is not valid for selected ad type."
-                        )
-
-        # 4️⃣ Call payment service
+        # 3️⃣ Prepare and trigger payment
         backend_url = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
         payment_payload = {
@@ -123,8 +109,8 @@ async def create_ad(
             "currency": "usd",
             "description": ad_data.get("business", {}).get("description", "Ad Payment"),
             "customer_email": email,
-            "customer_name": f"{user.get('first_name', '')} {user.get('last_name', '')}",
-            "coupon_code": coupon_code
+            "customer_name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
+            "coupon_code": coupon_code  # Directly passed to payment API, Stripe validates
         }
 
         try:
@@ -132,6 +118,7 @@ async def create_ad(
             payment_response.raise_for_status()
             payment_info = payment_response.json()
         except Exception as e:
+            # Cleanup ad + images if payment fails
             await ads_collection.delete_one({"_id": result.inserted_id})
             for url in image_urls:
                 try:
@@ -150,6 +137,7 @@ async def create_ad(
         }
 
     except Exception as e:
+        # Cleanup if ad creation failed at any stage
         if ad_id:
             await ads_collection.delete_one({"_id": ObjectId(ad_id)})
         for url in image_urls:

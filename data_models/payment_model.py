@@ -11,7 +11,7 @@ class PaymentRequest(BaseModel):
     customer_name: str
     customer_email: str
     price_ids: List[str]  # <-- Add this field
-    coupon_code: Optional[str] = None  # Optional coupon support
+    promotion_code_id: Optional[str] = None  # Optional coupon support
 
 class RefundRequest(BaseModel):
     payment_intent_id: str
