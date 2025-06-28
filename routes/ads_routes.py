@@ -54,8 +54,18 @@ webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
     },
     status_code=status.HTTP_201_CREATED
 )
+@ads_router.post(
+    "/create",
+    response_model=AdCreateResponse,
+    responses={
+        400: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        500: {"model": ErrorResponse}
+    },
+    status_code=status.HTTP_201_CREATED
+)
 async def create_ad(
-    data: AdCreateSchema,
+    data: AdCreateSchema = Depends(),  # Accept body as form-data or JSON
     images: List[UploadFile] = File(...),
     coupon_code: Optional[str] = Form(default=None),
     current_user: dict = Depends(get_current_user)
@@ -72,15 +82,14 @@ async def create_ad(
     image_urls = []
 
     try:
-        ad_data = json.loads(ad_json)
+        ad_data = data.dict()
         now = datetime.utcnow()
         expiry = now + timedelta(days=31)
 
-        price_ids = ad_data.get("price_ids", [])
+        price_ids = ad_data.get("adSettings", {}).get("price_ids", [])
         if not price_ids:
             raise HTTPException(status_code=400, detail="No Stripe price IDs provided")
 
-        # Add metadata
         ad_data.update({
             "approval": {"status": "pending", "adminId": None, "adminComment": None, "approvedAt": None},
             "reactions": {"likes": {"count": 0, "userIds": []}, "unlikes": {"count": 0, "userIds": []}},
@@ -110,7 +119,7 @@ async def create_ad(
             "description": ad_data.get("business", {}).get("description", "Ad Payment"),
             "customer_email": email,
             "customer_name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
-            "coupon_code": coupon_code  # Directly passed to payment API, Stripe validates
+            "coupon_code": coupon_code
         }
 
         try:
@@ -118,7 +127,6 @@ async def create_ad(
             payment_response.raise_for_status()
             payment_info = payment_response.json()
         except Exception as e:
-            # Cleanup ad + images if payment fails
             await ads_collection.delete_one({"_id": result.inserted_id})
             for url in image_urls:
                 try:
@@ -137,7 +145,6 @@ async def create_ad(
         }
 
     except Exception as e:
-        # Cleanup if ad creation failed at any stage
         if ad_id:
             await ads_collection.delete_one({"_id": ObjectId(ad_id)})
         for url in image_urls:
@@ -148,6 +155,7 @@ async def create_ad(
             except Exception as ce:
                 print(f"Cleanup failed for Cloudinary image: {ce}")
         raise HTTPException(status_code=500, detail=f"Creation failed: {str(e)}")
+
 
 @ads_router.delete(
     "/{ad_id}",
