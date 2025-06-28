@@ -504,9 +504,10 @@ async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
 
     result = []
     for ad in selected:
-        ad["ad_id"] = str(ad["_id"])
 
         try:
+            ad["ad_id"] = str(ad["_id"])  # ✅ Required for your AdOut model
+            ad["_id"] = str(ad["_id"])  # ✅ Prevent ObjectId serialization issue
             result.append(AdOut(**ad))
         except ValidationError as e:
             print(f"Validation error for ad {ad.get('_id')}: {e}")
