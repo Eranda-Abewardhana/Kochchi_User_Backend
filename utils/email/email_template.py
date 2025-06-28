@@ -1,7 +1,7 @@
 # services/email_templates.py
 
-def get_verification_email_template(first_name: str, verification_link: str) -> str:
-    """Get HTML template for email verification"""
+def get_verification_email_template(first_name: str, otp: str) -> str:
+    """Get HTML template for email verification with OTP"""
     return f"""
     <!DOCTYPE html>
     <html>
@@ -21,36 +21,31 @@ def get_verification_email_template(first_name: str, verification_link: str) -> 
                 <div style="padding: 40px 30px;">
                     <h2 style="color: #333; margin-top: 0; font-size: 24px;">Hi {first_name}! 👋</h2>
                     <p style="font-size: 16px; margin-bottom: 25px;">Thank you for joining us! We're excited to have you on board.</p>
-                    <p style="font-size: 16px; margin-bottom: 30px;">To get started and secure your account, please verify your email address by clicking the button below:</p>
+                    <p style="font-size: 16px; margin-bottom: 30px;">To get started and secure your account, please verify your email address using the OTP code below:</p>
 
-                    <!-- CTA Button -->
+                    <!-- OTP Code Display -->
                     <div style="text-align: center; margin: 40px 0;">
-                        <a href="{verification_link}" 
-                           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                                  color: white; 
-                                  padding: 16px 32px; 
-                                  text-decoration: none; 
-                                  border-radius: 25px; 
-                                  display: inline-block; 
-                                  font-weight: 600; 
-                                  font-size: 16px;
-                                  transition: transform 0.2s;">
-                            ✨ Verify Email Address
-                        </a>
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                    color: white; 
+                                    padding: 20px; 
+                                    border-radius: 10px; 
+                                    display: inline-block; 
+                                    font-weight: 700; 
+                                    font-size: 32px;
+                                    letter-spacing: 8px;
+                                    font-family: monospace;">
+                            {otp}
+                        </div>
                     </div>
 
-                    <!-- Alternative Link -->
-                    <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 6px; border-left: 4px solid #667eea;">
-                        <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Can't click the button? Copy and paste this link:</p>
-                        <p style="word-break: break-all; font-family: monospace; font-size: 12px; color: #333; margin: 0;">
-                            {verification_link}
-                        </p>
-                    </div>
+                    <p style="font-size: 16px; text-align: center; margin-bottom: 30px;">
+                        Enter this 4-digit code in the verification form to complete your registration.
+                    </p>
 
                     <!-- Expiry Notice -->
                     <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 15px; margin: 25px 0;">
                         <p style="margin: 0; font-size: 14px; color: #856404;">
-                            ⏰ <strong>Important:</strong> This verification link will expire in 24 hours for security reasons.
+                            ⏰ <strong>Important:</strong> This OTP code will expire in 10 minutes for security reasons.
                         </p>
                     </div>
 
@@ -120,8 +115,8 @@ def get_welcome_email_template(first_name: str, frontend_url: str) -> str:
     """
 
 
-def get_password_reset_email_template(first_name: str, reset_link: str) -> str:
-    """Get HTML template for password reset email"""
+def get_password_reset_email_template(first_name: str, otp: str) -> str:
+    """Get HTML template for password reset email with OTP"""
     return f"""
     <!DOCTYPE html>
     <html>
@@ -141,42 +136,37 @@ def get_password_reset_email_template(first_name: str, reset_link: str) -> str:
                 <div style="padding: 40px 30px;">
                     <h2 style="color: #333; margin-top: 0; font-size: 24px;">Hi {first_name}! 👋</h2>
                     <p style="font-size: 16px; margin-bottom: 25px;">We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
-                    <p style="font-size: 16px; margin-bottom: 30px;">To reset your password, click the button below:</p>
+                    <p style="font-size: 16px; margin-bottom: 30px;">To reset your password, use the OTP code below:</p>
 
-                    <!-- CTA Button -->
+                    <!-- OTP Code Display -->
                     <div style="text-align: center; margin: 40px 0;">
-                        <a href="{reset_link}" 
-                           style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%); 
-                                  color: white; 
-                                  padding: 16px 32px; 
-                                  text-decoration: none; 
-                                  border-radius: 25px; 
-                                  display: inline-block; 
-                                  font-weight: 600; 
-                                  font-size: 16px;
-                                  transition: transform 0.2s;">
-                            🔑 Reset Password
-                        </a>
+                        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%); 
+                                    color: white; 
+                                    padding: 20px; 
+                                    border-radius: 10px; 
+                                    display: inline-block; 
+                                    font-weight: 700; 
+                                    font-size: 32px;
+                                    letter-spacing: 8px;
+                                    font-family: monospace;">
+                            {otp}
+                        </div>
                     </div>
 
-                    <!-- Alternative Link -->
-                    <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 6px; border-left: 4px solid #ff6b6b;">
-                        <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Can't click the button? Copy and paste this link:</p>
-                        <p style="word-break: break-all; font-family: monospace; font-size: 12px; color: #333; margin: 0;">
-                            {reset_link}
-                        </p>
-                    </div>
+                    <p style="font-size: 16px; text-align: center; margin-bottom: 30px;">
+                        Enter this 4-digit code in the password reset form to set your new password.
+                    </p>
 
                     <!-- Security Notice -->
                     <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 15px; margin: 25px 0;">
                         <p style="margin: 0; font-size: 14px; color: #856404;">
-                            ⏰ <strong>Security:</strong> This reset link will expire in 1 hour for your protection.
+                            ⏰ <strong>Security:</strong> This OTP code will expire in 10 minutes for your protection.
                         </p>
                     </div>
 
                     <div style="background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 6px; padding: 15px; margin: 25px 0;">
                         <p style="margin: 0; font-size: 14px; color: #0c5460;">
-                            🔒 <strong>Important:</strong> Never share this link with anyone. Our team will never ask for your password.
+                            🔒 <strong>Important:</strong> Never share this OTP code with anyone. Our team will never ask for your password.
                         </p>
                     </div>
 

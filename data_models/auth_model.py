@@ -48,7 +48,8 @@ class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
 class ResetPasswordRequest(BaseModel):
-    token: str
+    email: EmailStr
+    otp: str
     new_password: str
 
 # --- Auth Response Models ---
@@ -72,10 +73,12 @@ class ErrorResponse(BaseModel):
 
 
 class EmailVerificationRequest(BaseModel):
-    token: str
+    email: EmailStr
+    otp: str
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
+
 class UserLastLoginResponse(BaseModel):
     username: Optional[str]
     email: Optional[EmailStr]

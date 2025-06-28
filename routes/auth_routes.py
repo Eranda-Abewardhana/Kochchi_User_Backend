@@ -11,7 +11,7 @@ from data_models.auth_model import (
     ResendVerificationRequest, ForgotPasswordRequest, ResetPasswordRequest, UserLastLoginResponse
 )
 from services.email_service import email_service
-from utils.auth.auth_utils import generate_verification_token, get_verification_expiry
+from utils.auth.auth_utils import generate_verification_token, get_verification_expiry, generate_otp, get_otp_expiry
 from utils.auth.jwt_functions import (
     hash_password, verify_password, create_access_token,
     get_current_user, get_super_admin, get_admin_or_super
@@ -30,9 +30,9 @@ async def register_user(user: RegisterRequest):
     if existing:
         raise HTTPException(status_code=400, detail="User already exists")
 
-    # Generate verification token
-    verification_token = generate_verification_token()
-    verification_expires = get_verification_expiry()
+    # Generate verification OTP
+    verification_otp = generate_otp()
+    verification_expires = get_otp_expiry()
 
     user_data = {
         "first_name": user.first_name,
@@ -44,7 +44,7 @@ async def register_user(user: RegisterRequest):
         "created_at": datetime.utcnow(),
         "is_active": True,
         "is_verified": False,
-        "verification_token": verification_token,
+        "verification_otp": verification_otp,
         "verification_expires": verification_expires
     }
 
@@ -55,12 +55,12 @@ async def register_user(user: RegisterRequest):
         # Send verification email
         await email_service.send_verification_email(
             user.email,
-            verification_token,
+            verification_otp,
             user.first_name
         )
 
         return {
-            "message": "Registration successful! Please check your email to verify your account.",
+            "message": "Registration successful! Please check your email to verify your account with the OTP.",
             "email": user.email
         }
 
@@ -79,24 +79,25 @@ async def register_user(user: RegisterRequest):
 
 @auth_router.post("/verify-email")
 async def verify_email(request: EmailVerificationRequest):
-    # Find user by verification token
+    # Find user by verification OTP
     user = await users_collection.find_one({
-        "verification_token": request.token,
+        "email": request.email,
+        "verification_otp": request.otp,
         "verification_expires": {"$gt": datetime.utcnow()}
     })
 
     if not user:
         raise HTTPException(
             status_code=400,
-            detail="Invalid or expired verification token"
+            detail="Invalid or expired verification OTP"
         )
 
-    # Update user as verified and remove verification token
+    # Update user as verified and remove verification OTP
     await users_collection.update_one(
         {"_id": user["_id"]},
         {
             "$set": {"is_verified": True, "updated_at": datetime.utcnow()},
-            "$unset": {"verification_token": "", "verification_expires": ""}
+            "$unset": {"verification_otp": "", "verification_expires": ""}
         }
     )
 
@@ -119,16 +120,16 @@ async def resend_verification_email(request: ResendVerificationRequest):
             detail="User not found or already verified"
         )
 
-    # Generate new verification token
-    verification_token = generate_verification_token()
-    verification_expires = get_verification_expiry()
+    # Generate new verification OTP
+    verification_otp = generate_otp()
+    verification_expires = get_otp_expiry()
 
-    # Update user with new token
+    # Update user with new OTP
     await users_collection.update_one(
         {"_id": user["_id"]},
         {
             "$set": {
-                "verification_token": verification_token,
+                "verification_otp": verification_otp,
                 "verification_expires": verification_expires,
                 "updated_at": datetime.utcnow()
             }
@@ -138,11 +139,11 @@ async def resend_verification_email(request: ResendVerificationRequest):
     # Send new verification email
     await email_service.send_verification_email(
         request.email,
-        verification_token,
+        verification_otp,
         user["first_name"]
     )
 
-    return {"message": "Verification email sent successfully!"}
+    return {"message": "Verification OTP sent successfully!"}
 
 
 @auth_router.post("/login", response_model=TokenResponse, responses={401: {"model": ErrorResponse}})
@@ -165,7 +166,7 @@ async def login_user(credentials: LoginRequest):
     if user.get("role") == "user" and not user.get("is_verified", False):
         raise HTTPException(
             status_code=401,
-            detail="Please verify your email address before logging in. Check your inbox for verification link."
+            detail="Please verify your email address before logging in. Check your inbox for verification OTP."
         )
 
     # ✅ Update last_login time after successful login
@@ -318,24 +319,24 @@ async def list_admins(current_user: dict = Depends(get_super_admin)):
 
 @auth_router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
-    """Request password reset email"""
+    """Request password reset OTP"""
     # Find user by email
     user = await users_collection.find_one({"email": request.email})
     
     if not user:
         # Don't reveal if user exists or not for security
-        return {"message": "If an account with that email exists, a password reset link has been sent."}
+        return {"message": "If an account with that email exists, a password reset OTP has been sent."}
     
-    # Generate password reset token
-    reset_token = generate_verification_token()
-    reset_expires = datetime.utcnow() + timedelta(hours=1)  # 1 hour expiry
+    # Generate password reset OTP
+    reset_otp = generate_otp()
+    reset_expires = get_otp_expiry()
     
-    # Update user with reset token
+    # Update user with reset OTP
     await users_collection.update_one(
         {"_id": user["_id"]},
         {
             "$set": {
-                "password_reset_token": reset_token,
+                "password_reset_otp": reset_otp,
                 "password_reset_expires": reset_expires,
                 "updated_at": datetime.utcnow()
             }
@@ -346,46 +347,47 @@ async def forgot_password(request: ForgotPasswordRequest):
         # Send password reset email
         await email_service.send_password_reset_email(
             request.email,
-            reset_token,
+            reset_otp,
             user["first_name"]
         )
         
-        return {"message": "If an account with that email exists, a password reset link has been sent."}
+        return {"message": "If an account with that email exists, a password reset OTP has been sent."}
         
     except Exception as e:
-        # If email sending fails, remove the reset token
+        # If email sending fails, remove the reset OTP
         await users_collection.update_one(
             {"_id": user["_id"]},
             {
-                "$unset": {"password_reset_token": "", "password_reset_expires": ""},
+                "$unset": {"password_reset_otp": "", "password_reset_expires": ""},
                 "$set": {"updated_at": datetime.utcnow()}
             }
         )
         raise HTTPException(
             status_code=500,
-            detail="Failed to send password reset email. Please try again."
+            detail="Failed to send password reset OTP. Please try again."
         )
 
 
 @auth_router.post("/reset-password")
 async def reset_password(request: ResetPasswordRequest):
-    """Reset password using token"""
-    # Find user by reset token
+    """Reset password using OTP"""
+    # Find user by reset OTP
     user = await users_collection.find_one({
-        "password_reset_token": request.token,
+        "email": request.email,
+        "password_reset_otp": request.otp,
         "password_reset_expires": {"$gt": datetime.utcnow()}
     })
     
     if not user:
         raise HTTPException(
             status_code=400,
-            detail="Invalid or expired reset token"
+            detail="Invalid or expired reset OTP"
         )
     
     # Hash new password
     hashed_password = hash_password(request.new_password)
     
-    # Update user password and remove reset token
+    # Update user password and remove reset OTP
     await users_collection.update_one(
         {"_id": user["_id"]},
         {
@@ -393,7 +395,7 @@ async def reset_password(request: ResetPasswordRequest):
                 "hashed_password": hashed_password,
                 "updated_at": datetime.utcnow()
             },
-            "$unset": {"password_reset_token": "", "password_reset_expires": ""}
+            "$unset": {"password_reset_otp": "", "password_reset_expires": ""}
         }
     )
     

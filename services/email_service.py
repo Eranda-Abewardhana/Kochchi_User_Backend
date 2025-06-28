@@ -41,14 +41,13 @@ class EmailService:
                 detail=f"Failed to send email: {str(e)}"
             )
 
-    async def send_verification_email(self, email: str, token: str, first_name: str):
-        """Send email verification"""
-        verification_link = f"{self.frontend_url}/verify-email?token={token}"
-        html_content = get_verification_email_template(first_name, verification_link)
+    async def send_verification_email(self, email: str, otp: str, first_name: str):
+        """Send email verification with OTP"""
+        html_content = get_verification_email_template(first_name, otp)
 
         result = await self._send_email(
             to_email=email,  # Send directly to the user
-            subject=f"🎉 Verify Your Email Address - Welcome Aboard!",
+            subject=f"🎉 Verify Your Email Address - Your OTP Code",
             html_content=html_content
         )
         print(f"Verification email sent to {email}")
@@ -71,14 +70,13 @@ class EmailService:
             print(f"Failed to send welcome email: {e}")
             pass
 
-    async def send_password_reset_email(self, email: str, token: str, first_name: str):
-        """Send password reset email"""
-        reset_link = f"{self.frontend_url}/reset-password?token={token}"
-        html_content = get_password_reset_email_template(first_name, reset_link)
+    async def send_password_reset_email(self, email: str, otp: str, first_name: str):
+        """Send password reset email with OTP"""
+        html_content = get_password_reset_email_template(first_name, otp)
 
         result = await self._send_email(
             to_email=email,  # Send directly to the user
-            subject=f"🔐 Password Reset Request",
+            subject=f"🔐 Password Reset Request - Your OTP Code",
             html_content=html_content
         )
         print(f"Password reset email sent to {email}")
