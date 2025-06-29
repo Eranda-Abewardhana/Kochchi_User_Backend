@@ -9,7 +9,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, De
 from typing import List, Optional, Annotated
 from bson import ObjectId
 from datetime import datetime
-
+import re
 from pydantic import ValidationError, HttpUrl
 
 from databases.mongo import db
@@ -48,6 +48,18 @@ def convert_to_serializable(obj):
     if isinstance(obj, list):
         return [convert_to_serializable(i) for i in obj]
     return obj
+
+def extract_lat_lon_from_string(location_str: Optional[str]):
+    """
+    Extracts lat, lon from a coordinate string like '6.9271,79.8612' or a full map URL.
+    """
+    if not location_str:
+        return None, None
+    match = re.search(r'([-+]?[0-9]*\.?[0-9]+)[,\s]+([-+]?[0-9]*\.?[0-9]+)', location_str)
+    if match:
+        return float(match.group(1)), float(match.group(2))
+    return None, None
+
 ads_router = APIRouter(prefix="/ads", tags=["Ads"])
 
 ads_collection = db["ads"]
@@ -683,12 +695,16 @@ async def filter_ads(
         ad_lat = location.get("lat")
         ad_lng = location.get("lon")
 
+        # Try extracting from googleMapLocation if lat/lon are not given
+        if (ad_lat is None or ad_lng is None) and location.get("googleMapLocation"):
+            ad_lat, ad_lng = extract_lat_lon_from_string(location["googleMapLocation"])
+
         if lat is not None and lng is not None:
             if ad_lat is None or ad_lng is None:
-                continue
+                continue  # skip ads with no usable location
             distance = calculate_distance(lat, lng, ad_lat, ad_lng)
         else:
-            distance = 0
+            distance = 0  # no location filtering
 
         results.append(AdListingPreview(
             ad_id=str(ad["_id"]),
@@ -699,11 +715,10 @@ async def filter_ads(
             category=ad.get("business", {}).get("category"),
             contact_name=ad.get("contact", {}).get("address"),
             contact_phone=ad.get("contact", {}).get("phone"),
-            priority_score=int(100 - distance)  # optional scoring based on proximity
+            priority_score=int(100 - distance)
         ))
 
-    # Sort by distance if location provided
     if lat is not None and lng is not None:
-        results.sort(key=lambda x: -x.priority_score)  # higher score = closer
+        results.sort(key=lambda x: -x.priority_score)
 
     return results

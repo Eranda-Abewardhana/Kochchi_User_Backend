@@ -16,6 +16,7 @@ example_json = {
         "province": "Western",
         "country": "Sri Lanka",
         "state": "N/A"
+
     },
     "business": {
         "category": "Restaurant",
