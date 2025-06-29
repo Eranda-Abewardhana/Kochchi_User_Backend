@@ -39,32 +39,33 @@ BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 
     },
     status_code=status.HTTP_201_CREATED
 )
+@dansal_router.post("/dansal/create")
 async def create_dansal(
-    data: Annotated[str, Form(...)],                      # JSON string
-    images: Optional[List[UploadFile]] = File(None),      # Uploaded files
+    data: Annotated[str, Form(...)],
+    images: Optional[List[UploadFile]] = File(None),
     current_user: dict = Depends(get_current_user)
 ):
-
     try:
         entry_data = json.loads(data)
-        validated = DansalRequestModel(**entry_data)           # Validate input
-        payload = DansalEntry(**validated.dict())              # Full model with images, timestamps
+        validated = DansalRequestModel(**entry_data)   # Validate with Pydantic
+        payload = DansalEntry(**validated.dict())
 
         result = await dansal_collection.insert_one(payload.dict())
         dansal_id = str(result.inserted_id)
 
         image_urls = []
         if images:
-            image_urls = save_uploaded_images(
-                images,
-                cloud_folder=f"dansals/{dansal_id}"
-            )
+            image_urls = save_uploaded_images(images, cloud_folder=f"dansals/{dansal_id}")
             await dansal_collection.update_one(
                 {"_id": ObjectId(dansal_id)},
                 {"$set": {"images": image_urls}}
             )
 
-        return {"message": "Dansal created", "id": dansal_id, "images": image_urls}
+        return {
+            "message": "Dansal created",
+            "id": dansal_id,
+            "images": image_urls
+        }
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON in 'data' field")
