@@ -28,6 +28,7 @@ import os
 from datetime import datetime
 from bson import ObjectId
 
+from routes.payment__routes import initiate_payment, create_stripe_checkout_session
 from routes.pricing_routes import get_all_prices
 from services.distance_radius_calculator import calculate_distance
 from services.file_upload_service import save_uploaded_images, upload_image_to_cloudinary
@@ -145,7 +146,6 @@ async def create_ad(
             await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
 
         # 3️⃣ Prepare and trigger payment
-        backend_url = os.getenv("BASE_URL", "http://localhost:8000")
         print('go for payments')
         payment_payload = {
             "ad_id": ad_id,
@@ -159,13 +159,12 @@ async def create_ad(
         }
 
         try:
-            payment_response = requests.post(
-                f"{backend_url}/api/payments/initiate",
-                json=payment_payload,
-                timeout=(5, 60)
-            )
-            payment_response.raise_for_status()
-            payment_info = payment_response.json()
+            if total_amount <= 0:
+                raise ValueError("Invalid total amount for payment.")
+
+            print("Stripe payment payload:", payment_payload)
+            payment_info = create_stripe_checkout_session(payment_payload)
+
 
         except Exception as e:
             await ads_collection.delete_one({"_id": result.inserted_id})

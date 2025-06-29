@@ -77,3 +77,27 @@ async def refund_payment(refund_request: RefundRequest):
     except Exception as e:
         print(f"Refund error: {e}")
         raise HTTPException(status_code=500, detail="Refund failed")
+
+def create_stripe_checkout_session(data: dict) -> dict:
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": data["currency"].lower(),
+                    "unit_amount": int(data["amount"] * 100),
+                    "product_data": {
+                        "name": data["description"],
+                    },
+                },
+                "quantity": 1,
+            }],
+            customer_email=data["customer_email"],
+            mode="payment",
+            success_url="https://kochchibazaar.lk/payment-success",
+            cancel_url="https://kochchibazaar.lk/payment-cancel",
+        )
+        return {"checkout_url": session.url, "session_id": session.id}
+    except Exception as e:
+        print(f"Stripe error during session creation: {e}")
+        raise
