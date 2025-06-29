@@ -87,10 +87,15 @@ class AdBase(BaseModel):
 
 # ✅ Response Models
 
+class PaymentInfo(BaseModel):
+    checkout_url: str
+    session_id: str
+
 class AdCreateResponse(BaseModel):
     message: str
     adId: str
     images: List[str]
+    payment: Optional[PaymentInfo]  # ✅ Add this line
 
 
 class AdDeleteResponse(BaseModel):
