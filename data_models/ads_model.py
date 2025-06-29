@@ -43,6 +43,7 @@ class Schedule(BaseModel):
 class AdSettings(BaseModel):
     isTopAd: bool = False
     isCarousalAd: bool = False
+    hasHalal: bool = False
 
 
 class Approval(BaseModel):

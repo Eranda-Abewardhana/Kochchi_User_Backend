@@ -36,7 +36,8 @@ example_json = {
     },
     "adSettings": {
         "isTopAd": False,
-        "isCarousalAd": True
+        "isCarousalAd": True,
+        "hasHalal":  False
     },
     "videoUrl": "https://example.com/video.mp4"
 }

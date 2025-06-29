@@ -1,25 +1,29 @@
 import os
 import stripe
-from fastapi import APIRouter, Request, HTTPException
-from pydantic import BaseModel
-from data_models.payment_model import PaymentRequest, RefundRequest
-from routes.ads_routes import ads_collection
 import cloudinary.uploader
-# Initialize router
+from fastapi import APIRouter, Request, HTTPException
+from data_models.payment_model import PaymentRequest, RefundRequest
+from databases.mongo import db  # <-- Import directly from your database layer
+from bson import ObjectId
+
+# FastAPI router
 payment_router = APIRouter(prefix="/payments", tags=["Payments"])
 
-# Stripe configuration from environment variables
+# Stripe config
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-SUCCESS_URL = os.getenv("SUCCESS_URL", "http://localhost/success")
-CANCEL_URL = os.getenv("CANCEL_URL", "http://localhost/cancel")
+SUCCESS_URL = os.getenv("SUCCESS_URL", "https://kochchibazaar.lk/payment-success")
+CANCEL_URL = os.getenv("CANCEL_URL", "https://kochchibazaar.lk/payment-cancel")
 
 if not STRIPE_SECRET_KEY:
-    raise RuntimeError("Missing STRIPE_SECRET_KEY environment variable")
+    raise RuntimeError("Missing STRIPE_SECRET_KEY")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-# Initiate payment request
+# Mongo collection
+ads_collection = db.get_collection("ads")
+
+# --- Payment Initiation ---
 @payment_router.post("/initiate")
 async def initiate_payment(data: PaymentRequest):
     try:
@@ -45,25 +49,22 @@ async def initiate_payment(data: PaymentRequest):
         print(f"Stripe error during initiation: {e}")
         raise HTTPException(status_code=500, detail="Failed to initiate payment")
 
-# --- Stripe Webhook to Handle Events ---
+# --- Stripe Webhook ---
 @payment_router.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     event_type = event["type"]
     session = event["data"]["object"]
 
-    if event_type == "checkout.session.expired" or event_type == "checkout.session.async_payment_failed":
+    if event_type in ["checkout.session.expired", "checkout.session.async_payment_failed"]:
         session_id = session.get("id")
-        # delete ad if not paid
         ad = await ads_collection.find_one({"stripeSessionId": session_id})
         if ad:
             await ads_collection.delete_one({"_id": ad["_id"]})
@@ -77,11 +78,14 @@ async def stripe_webhook(request: Request):
 
     elif event_type == "checkout.session.completed":
         session_id = session.get("id")
-        await ads_collection.update_one({"stripeSessionId": session_id}, {"$set": {"visibility": "visible"}})
+        await ads_collection.update_one(
+            {"stripeSessionId": session_id},
+            {"$set": {"visibility": "visible"}}
+        )
 
     return {"status": "ok"}
 
-
+# --- Refund Handler ---
 @payment_router.post("/refund")
 async def refund_payment(refund_request: RefundRequest):
     try:
@@ -91,22 +95,18 @@ async def refund_payment(refund_request: RefundRequest):
         print(f"Refund error: {e}")
         raise HTTPException(status_code=500, detail="Refund failed")
 
+# --- Session Creator Helper ---
 def create_stripe_checkout_session(data: dict) -> dict:
     try:
         discounts = []
-
         if data.get("coupon_code"):
             try:
-                promo_list = stripe.PromotionCode.list(
-                    code=data["coupon_code"], active=True, limit=1
-                )
+                promo_list = stripe.PromotionCode.list(code=data["coupon_code"], active=True, limit=1)
                 if promo_list.data:
                     promo_code = promo_list.data[0]
                     discounts.append({"promotion_code": promo_code.id})
-                else:
-                    print(f"Invalid or expired coupon code: {data['coupon_code']}")
             except Exception as ce:
-                print(f"Error validating promotion code: {ce}")
+                print(f"Promo validation failed: {ce}")
 
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
@@ -122,16 +122,12 @@ def create_stripe_checkout_session(data: dict) -> dict:
             }],
             customer_email=data["customer_email"],
             mode="payment",
-            success_url="https://kochchibazaar.lk/payment-success",
-            cancel_url="https://kochchibazaar.lk/payment-cancel",
-            discounts=discounts if discounts else None
+            success_url=SUCCESS_URL,
+            cancel_url=CANCEL_URL,
+            discounts=discounts if discounts else None,
         )
-
-        return {
-            "checkout_url": session.url,
-            "session_id": session.id
-        }
+        return {"checkout_url": session.url, "session_id": session.id}
 
     except Exception as e:
         print(f"Stripe error during session creation: {e}")
-        raise
+        raise HTTPException(status_code=500, detail="Stripe session creation failed")
