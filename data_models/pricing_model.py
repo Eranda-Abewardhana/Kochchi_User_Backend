@@ -1,5 +1,5 @@
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import Optional, Dict, List
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class DiscountModel(BaseModel):
@@ -48,3 +48,11 @@ class StripeProductCreate(BaseModel):
 class StripeProductUpdate(BaseModel):
     name: Optional[str]
     description: Optional[str]
+    active: Optional[bool]
+    metadata: Optional[Dict[str, str]]
+    images: Optional[List[HttpUrl]]
+    default_price: Optional[str]  # Can be set to a different price ID
+    statement_descriptor: Optional[str]
+
+    class Config:
+        extra = "forbid"  # Disallow unrecognized fields

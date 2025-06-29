@@ -10,7 +10,7 @@ from typing import List, Optional, Annotated
 from bson import ObjectId
 from datetime import datetime
 
-from pydantic import ValidationError
+from pydantic import ValidationError, HttpUrl
 
 from databases.mongo import db
 from data_models.ads_model import (
@@ -34,9 +34,19 @@ from services.file_upload_service import save_uploaded_images, upload_image_to_c
 from fastapi.security import OAuth2PasswordBearer
 from utils.auth.jwt_functions import decode_token, get_admin_or_super, get_current_user
 from datetime import timedelta
-
 from utils.examples.ads import example_json, ads_description
 
+# Convert all HttpUrl, datetime, etc. to JSON-serializable values
+def convert_to_serializable(obj):
+    if isinstance(obj, (datetime,)):
+        return obj
+    if isinstance(obj, HttpUrl):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: convert_to_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [convert_to_serializable(i) for i in obj]
+    return obj
 ads_router = APIRouter(prefix="/ads", tags=["Ads"])
 
 ads_collection = db["ads"]
@@ -125,6 +135,7 @@ async def create_ad(
             raise HTTPException(status_code=400, detail="No matching Stripe prices found for ad settings.")
 
         # 1️⃣ Insert ad
+        ad_data = convert_to_serializable(ad_data)
         result = await ads_collection.insert_one(ad_data)
         ad_id = str(result.inserted_id)
 

@@ -173,11 +173,15 @@ async def get_price(price_id: str):
 @pricing_router.put("/stripe-product/{product_id}")
 async def update_product(product_id: str, data: StripeProductUpdate):
     try:
-        updated_product = stripe.Product.modify(product_id, **data.dict(exclude_none=True))
+        update_payload = data.dict(exclude_none=True)
+        updated_product = stripe.Product.modify(product_id, **update_payload)
         return {"message": "Product updated", "product": updated_product}
+    except stripe.error.InvalidRequestError as e:
+        raise HTTPException(status_code=400, detail=f"Stripe error: {e.user_message or str(e)}")
     except Exception as e:
         print(f"Update product error: {e}")
         raise HTTPException(status_code=500, detail="Failed to update product")
+
 
 @pricing_router.delete("/stripe-price/{price_id}")
 async def deactivate_price(price_id: str):
