@@ -1,10 +1,23 @@
+import os
+
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
-
-from data_models.pricing_model import UpdatePriceModel, UpdateDiscountRequest, FullPricingModel
+import stripe
+from data_models.pricing_model import UpdatePriceModel, UpdateDiscountRequest, FullPricingModel, StripeProductCreate, \
+    StripeProductUpdate
 from databases.mongo import db
 from datetime import datetime
 
+# Stripe configuration from environment variables
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+SUCCESS_URL = os.getenv("SUCCESS_URL", "http://localhost/success")
+CANCEL_URL = os.getenv("CANCEL_URL", "http://localhost/cancel")
+
+if not STRIPE_SECRET_KEY:
+    raise RuntimeError("Missing STRIPE_SECRET_KEY environment variable")
+
+stripe.api_key = STRIPE_SECRET_KEY
 pricing_router = APIRouter(prefix="/pricing", tags=["Ad Pricing"])
 ad_pricing_collection = db["ad_pricing"]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -108,3 +121,98 @@ async def add_ad_price(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to add pricing: {str(e)}")
+
+@pricing_router.post("/stripe-price/create")
+async def create_price(data: StripeProductCreate):
+    try:
+        # 1. Create product
+        product = stripe.Product.create(name=data.name, description=data.description)
+
+        # 2. Create price (recurring or one-time)
+        price_params = {
+            "unit_amount": data.amount,
+            "currency": data.currency,
+            "product": product.id,
+        }
+
+        if data.recurring_interval:
+            price_params["recurring"] = {"interval": data.recurring_interval}
+
+        price = stripe.Price.create(**price_params)
+
+        return {
+            "product_id": product.id,
+            "price_id": price.id,
+            "unit_amount": price.unit_amount,
+            "currency": price.currency
+        }
+    except Exception as e:
+        print(f"Create price error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create price")
+
+@pricing_router.get("/stripe-price/{price_id}")
+async def get_price(price_id: str):
+    try:
+        price = stripe.Price.retrieve(price_id)
+        product = stripe.Product.retrieve(price.product)
+        return {
+            "price_id": price.id,
+            "amount": price.unit_amount,
+            "currency": price.currency,
+            "recurring": price.recurring,
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "description": product.description
+            }
+        }
+    except Exception as e:
+        print(f"Read price error: {e}")
+        raise HTTPException(status_code=404, detail="Price not found")
+
+@pricing_router.put("/stripe-product/{product_id}")
+async def update_product(product_id: str, data: StripeProductUpdate):
+    try:
+        updated_product = stripe.Product.modify(product_id, **data.dict(exclude_none=True))
+        return {"message": "Product updated", "product": updated_product}
+    except Exception as e:
+        print(f"Update product error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update product")
+
+@pricing_router.delete("/stripe-price/{price_id}")
+async def deactivate_price(price_id: str):
+    try:
+        price = stripe.Price.modify(price_id, active=False)
+        return {"message": "Price deactivated", "price_id": price.id}
+    except Exception as e:
+        print(f"Deactivate price error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to deactivate price")
+@pricing_router.get("/all")
+async def get_all_prices():
+    try:
+        prices = stripe.Price.list(active=True, limit=100)  # Adjust limit as needed
+        result = []
+
+        for price in prices.auto_paging_iter():
+            try:
+                product = stripe.Product.retrieve(price.product)
+                result.append({
+                    "price_id": price.id,
+                    "amount": price.unit_amount,
+                    "currency": price.currency,
+                    "recurring": price.recurring,
+                    "product": {
+                        "id": product.id,
+                        "name": product.name,
+                        "description": product.description
+                    }
+                })
+            except stripe.error.StripeError as e:
+                print(f"Error fetching product for price {price.id}: {e}")
+                continue
+
+        return {"prices": result}
+
+    except Exception as e:
+        print(f"Error retrieving prices: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve Stripe prices")

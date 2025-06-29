@@ -37,3 +37,14 @@ class UpdateDiscountRequest(BaseModel):
     base_price: Optional[DiscountData] = None
     top_add_price: Optional[DiscountData] = None
     carosal_add_price: Optional[DiscountData] = None
+
+class StripeProductCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    amount: int  # in cents
+    currency: str = "lkr"
+    recurring_interval: Optional[str] = None  # 'month', 'year', etc.
+
+class StripeProductUpdate(BaseModel):
+    name: Optional[str]
+    description: Optional[str]
