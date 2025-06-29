@@ -93,6 +93,21 @@ async def refund_payment(refund_request: RefundRequest):
 
 def create_stripe_checkout_session(data: dict) -> dict:
     try:
+        discounts = []
+
+        if data.get("coupon_code"):
+            try:
+                promo_list = stripe.PromotionCode.list(
+                    code=data["coupon_code"], active=True, limit=1
+                )
+                if promo_list.data:
+                    promo_code = promo_list.data[0]
+                    discounts.append({"promotion_code": promo_code.id})
+                else:
+                    print(f"Invalid or expired coupon code: {data['coupon_code']}")
+            except Exception as ce:
+                print(f"Error validating promotion code: {ce}")
+
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
@@ -109,8 +124,14 @@ def create_stripe_checkout_session(data: dict) -> dict:
             mode="payment",
             success_url="https://kochchibazaar.lk/payment-success",
             cancel_url="https://kochchibazaar.lk/payment-cancel",
+            discounts=discounts if discounts else None
         )
-        return {"checkout_url": session.url, "session_id": session.id}
+
+        return {
+            "checkout_url": session.url,
+            "session_id": session.id
+        }
+
     except Exception as e:
         print(f"Stripe error during session creation: {e}")
         raise
