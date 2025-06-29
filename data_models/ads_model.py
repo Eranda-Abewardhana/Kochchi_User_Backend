@@ -145,7 +145,6 @@ class AdCreateSchema(BaseModel):
     schedule: Schedule
     adSettings: AdSettings
     videoUrl: Optional[HttpUrl]
-    coupon_code: Optional[str] = Form(default=None),
 
     class Config:
         schema_extra = {

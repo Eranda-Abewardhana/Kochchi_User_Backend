@@ -105,7 +105,7 @@ async def create_ad(
 
         # 3️⃣ Prepare and trigger payment
         backend_url = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
-
+        print('go for payments')
         payment_payload = {
             "ad_id": ad_id,
             "price_ids": price_ids,
