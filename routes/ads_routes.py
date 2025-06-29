@@ -47,16 +47,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # Load environment variables
 load_dotenv()
 webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
-@ads_router.post(
-    "/create",
-    response_model=AdCreateResponse,
-    responses={
-        400: {"model": ErrorResponse},
-        422: {"model": ErrorResponse},
-        500: {"model": ErrorResponse}
-    },
-    status_code=status.HTTP_201_CREATED
-)
+
 @ads_router.post(
     "/create",
     response_model=AdCreateResponse,
@@ -68,7 +59,7 @@ webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
     status_code=status.HTTP_201_CREATED
 )
 async def create_ad(
-    data: AdCreateSchema = Depends(),  # Accept body as form-data or JSON
+    data: AdCreateSchema,  # Accept body as form-data or JSON
     images: List[UploadFile] = File(...),
     coupon_code: Optional[str] = Form(default=None),
     current_user: dict = Depends(get_current_user)
