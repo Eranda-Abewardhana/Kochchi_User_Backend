@@ -130,7 +130,6 @@ class AdOut(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     images: Optional[List[HttpUrl]] = []  # use List[str] if URLs may be unvalidated
-    approval: Optional[Approval] = None
 
 
 class PaginatedAdResponse(BaseModel):
