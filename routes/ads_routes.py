@@ -145,7 +145,7 @@ async def create_ad(
             await ads_collection.update_one({"_id": result.inserted_id}, {"$set": {"images": image_urls}})
 
         # 3️⃣ Prepare and trigger payment
-        backend_url = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
+        backend_url = os.getenv("BASE_URL", "http://localhost:8000")
         print('go for payments')
         payment_payload = {
             "ad_id": ad_id,
