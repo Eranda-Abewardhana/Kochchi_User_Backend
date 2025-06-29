@@ -59,7 +59,7 @@ webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
     status_code=status.HTTP_201_CREATED
 )
 async def create_ad(
-    data: AdCreateSchema,  # Accept body as form-data or JSON
+    data: Annotated[str, Form(...)],  # Receive JSON as string from multipart form
     images: List[UploadFile] = File(...),
     coupon_code: Optional[str] = Form(default=None),
     current_user: dict = Depends(get_current_user)
@@ -76,7 +76,10 @@ async def create_ad(
     image_urls = []
 
     try:
-        ad_data = data.dict()
+        parsed_data = json.loads(data)
+        ad_data_obj = AdCreateSchema(**parsed_data)  # Validate schema
+        ad_data = ad_data_obj.dict()
+
         now = datetime.utcnow()
         expiry = now + timedelta(days=31)
 
