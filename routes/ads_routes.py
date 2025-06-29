@@ -159,7 +159,33 @@ async def create_ad(
                 print(f"Cleanup failed for Cloudinary image: {ce}")
         raise HTTPException(status_code=500, detail=f"Creation failed: {str(e)}")
 
+@ads_router.get("/carousal-ads", response_model=List[AdOut])
+async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
+    print('hit')
+    cursor = ads_collection.find({
+        "adSettings.isCarousalAd": True,
+        "visibility": "visible"
+    })
 
+    ads = await cursor.to_list(length=None)
+
+    if not ads:
+        raise HTTPException(status_code=404, detail="No carousal ads found")
+
+    random.shuffle(ads)
+    selected = ads[:8]
+    print(selected)
+    result = []
+
+    for ad in selected:
+        try:
+            result.append(AdOut(**ad))
+        except ValidationError as e:
+            print(f"Validation error for ad {ad.get('_id')}: {e}")
+            print("Offending ad:", ad)
+            continue  # Skip ads that fail validation
+
+    return result
 @ads_router.delete(
     "/{ad_id}",
     response_model=AdDeleteResponse,
@@ -487,31 +513,6 @@ async def get_full_top_ads(
         "total_ads": total_ads,
         "results": results
     }
-@ads_router.get("/carousal-ads", response_model=List[AdOut])
-async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
-    cursor = ads_collection.find({
-        "adSettings.isCarousalAd": True,
-        "visibility": "visible"
-    })
-
-    ads = await cursor.to_list(length=None)
-
-    if not ads:
-        raise HTTPException(status_code=404, detail="No carousal ads found")
-
-    random.shuffle(ads)
-    selected = ads[:8]
-    result = []
-
-    for ad in selected:
-        try:
-            result.append(AdOut(**ad))
-        except ValidationError as e:
-            print(f"Validation error for ad {ad.get('_id')}: {e}")
-            print("Offending ad:", ad)
-            continue  # Skip ads that fail validation
-
-    return result
 
 @ads_router.get("/sorted-all", response_model=List[AdListingPreview])
 async def get_all_ads_sorted_by_priority(current_user: dict = Depends(get_current_user)):
