@@ -7,6 +7,8 @@ from data_models.category_model import Category, CategoryResponse, CreateCategor
 from bson import ObjectId
 from typing import List, Optional
 
+from utils.auth.jwt_functions import get_current_user
+
 category_router = APIRouter(prefix="/categories", tags=["Categories"])
 category_collection = db["categories"]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -16,7 +18,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
     response_model=CreateCategoryResponse,
     responses={400: {"model": ErrorResponse}}
 )
-async def create_category(data: Category, token: str = Depends(oauth2_scheme), docs_model: Optional[CreateCategoryResponse] = Body(None, include_in_schema=True)):
+async def create_category(data: Category, current_user: dict = Depends(get_current_user)):
     existing = await category_collection.find_one({"name": data.name})
     if existing:
         raise HTTPException(status_code=400, detail="Category already exists")

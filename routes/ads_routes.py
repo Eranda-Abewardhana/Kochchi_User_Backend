@@ -657,3 +657,53 @@ async def stripe_webhook(request: Request, current_user: dict = Depends(get_curr
         print("📦 Unhandled event:", event["type"])
 
     return {"status": "success"}
+@ads_router.get("/filter", response_model=List[AdListingPreview])
+async def filter_ads(
+    category: Optional[str] = Query(None, description="Filter by main category"),
+    specialty: Optional[str] = Query(None, description="Optional filter by specialty"),
+    city: Optional[str] = Query(None, description="Optional filter by city"),
+    lat: Optional[float] = Query(None, description="Latitude for distance-based sorting"),
+    lng: Optional[float] = Query(None, description="Longitude for distance-based sorting"),
+    current_user: dict = Depends(get_current_user)
+):
+    query = {"visibility": "visible"}
+    if category and category.lower() != "all categories":
+        query["business.category"] = category
+    if specialty:
+        query["business.specialty"] = specialty
+    if city:
+        query["location.city"] = city
+
+    ads_cursor = ads_collection.find(query)
+    ads = await ads_cursor.to_list(length=None)
+
+    results = []
+    for ad in ads:
+        location = ad.get("location", {})
+        ad_lat = location.get("lat")
+        ad_lng = location.get("lon")
+
+        if lat is not None and lng is not None:
+            if ad_lat is None or ad_lng is None:
+                continue
+            distance = calculate_distance(lat, lng, ad_lat, ad_lng)
+        else:
+            distance = 0
+
+        results.append(AdListingPreview(
+            ad_id=str(ad["_id"]),
+            title=ad.get("shopName", "Untitled Ad"),
+            image_url=ad.get("images", [None])[0],
+            city=location.get("city"),
+            district=location.get("district"),
+            category=ad.get("business", {}).get("category"),
+            contact_name=ad.get("contact", {}).get("address"),
+            contact_phone=ad.get("contact", {}).get("phone"),
+            priority_score=int(100 - distance)  # optional scoring based on proximity
+        ))
+
+    # Sort by distance if location provided
+    if lat is not None and lng is not None:
+        results.sort(key=lambda x: -x.priority_score)  # higher score = closer
+
+    return results
