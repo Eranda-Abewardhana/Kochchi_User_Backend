@@ -3,7 +3,8 @@ import stripe
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 from data_models.payment_model import PaymentRequest, RefundRequest
-
+from routes.ads_routes import ads_collection
+import cloudinary.uploader
 # Initialize router
 payment_router = APIRouter(prefix="/payments", tags=["Payments"])
 
@@ -45,7 +46,7 @@ async def initiate_payment(data: PaymentRequest):
         raise HTTPException(status_code=500, detail="Failed to initiate payment")
 
 # --- Stripe Webhook to Handle Events ---
-@payment_router.post("/webhook")
+@payment_router.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
@@ -56,18 +57,30 @@ async def stripe_webhook(request: Request):
         )
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
-    except Exception as e:
-        print(f"Webhook error: {e}")
-        raise HTTPException(status_code=400, detail="Webhook error")
 
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        ad_id = session["metadata"].get("ad_id")
-        print(f"✅ Payment complete for ad ID: {ad_id}")
+    event_type = event["type"]
+    session = event["data"]["object"]
 
-        # TODO: Update your ad as paid in database here
+    if event_type == "checkout.session.expired" or event_type == "checkout.session.async_payment_failed":
+        session_id = session.get("id")
+        # delete ad if not paid
+        ad = await ads_collection.find_one({"stripeSessionId": session_id})
+        if ad:
+            await ads_collection.delete_one({"_id": ad["_id"]})
+            for url in ad.get("images", []):
+                try:
+                    parts = url.split("/")
+                    public_id = "/".join(parts[parts.index("ads"):-1]) + "/" + parts[-1].split(".")[0]
+                    cloudinary.uploader.destroy(public_id)
+                except Exception as ce:
+                    print(f"Cloudinary cleanup failed: {ce}")
 
-    return {"status": "success"}
+    elif event_type == "checkout.session.completed":
+        session_id = session.get("id")
+        await ads_collection.update_one({"stripeSessionId": session_id}, {"$set": {"visibility": "visible"}})
+
+    return {"status": "ok"}
+
 
 @payment_router.post("/refund")
 async def refund_payment(refund_request: RefundRequest):

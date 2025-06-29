@@ -13,6 +13,7 @@ from bson import ObjectId
 
 from services.distance_radius_calculator import calculate_distance
 from services.file_upload_service import save_uploaded_images
+from utils.auth.jwt_functions import get_current_user
 
 dansal_router = APIRouter(prefix="/dansal", tags=["Dansal"])
 dansal_collection = db["dansal"]
@@ -27,7 +28,7 @@ async def create_dansal(
     payload: DansalRequestModel,
     data: str = Form(...),                          # JSON string
     images: Optional[List[UploadFile]] = File(None), # Uploaded files
-    token: str = Depends(oauth2_scheme)
+    current_user: dict = Depends(get_current_user)
 ):
     try:
         # Parse JSON string to model
@@ -59,7 +60,7 @@ async def create_dansal(
 
 # --- Endpoint: Get nearby Dansal events ---
 @dansal_router.get("/nearby", response_model=List[DansalEntry])
-async def get_nearby_dansal(lat: float = Query(...), lon: float = Query(...), max_km: float = 20, token: str = Depends(oauth2_scheme)):
+async def get_nearby_dansal(lat: float = Query(...), lon: float = Query(...), max_km: float = 20, current_user: dict = Depends(get_current_user)):
     try:
         all_dansal = await dansal_collection.find().to_list(length=None)
         nearby = []

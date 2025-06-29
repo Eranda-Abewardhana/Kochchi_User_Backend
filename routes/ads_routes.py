@@ -164,7 +164,10 @@ async def create_ad(
 
             print("Stripe payment payload:", payment_payload)
             payment_info = create_stripe_checkout_session(payment_payload)
-
+            # Save session ID in DB for tracking later
+            await ads_collection.update_one({"_id": result.inserted_id}, {
+                "$set": {"stripeSessionId": payment_info["session_id"]}
+            })
 
         except Exception as e:
             await ads_collection.delete_one({"_id": result.inserted_id})

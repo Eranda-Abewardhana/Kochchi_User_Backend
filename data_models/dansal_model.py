@@ -14,7 +14,8 @@ class DansalLocation(BaseModel):
     city: str
     district: str
     province: Optional[str] = None
-    googleMapLink: Optional[str] = None
+    lat: Optional[str] = None
+    lon: Optional[str] = None
 
 
 class DansalEntry(BaseModel):
