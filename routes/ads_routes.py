@@ -159,9 +159,14 @@ async def create_ad(
         }
 
         try:
-            payment_response = requests.post(f"{backend_url}/api/payments/initiate", json=payment_payload)
+            payment_response = requests.post(
+                f"{backend_url}/api/payments/initiate",
+                json=payment_payload,
+                timeout=(5, 60)
+            )
             payment_response.raise_for_status()
             payment_info = payment_response.json()
+
         except Exception as e:
             await ads_collection.delete_one({"_id": result.inserted_id})
             for url in image_urls:
