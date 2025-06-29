@@ -505,8 +505,6 @@ async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
 
     for ad in selected:
         try:
-            ad["ad_id"] = str(ad["_id"])  # ✅ Convert ObjectId to str for ad_id
-            ad["_id"] = str(ad["_id"])    # ✅ Optional: sanitize for JSON output
             result.append(AdOut(**ad))
         except ValidationError as e:
             print(f"Validation error for ad {ad.get('_id')}: {e}")

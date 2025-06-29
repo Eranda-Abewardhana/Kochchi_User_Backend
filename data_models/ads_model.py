@@ -127,22 +127,11 @@ class AdListingPreview(BaseModel):
     priority_score: int
 
 class AdOut(BaseModel):
-    ad_id: str
     title: Optional[str] = None
     description: Optional[str] = None
-    business: Optional[Business] = None
-    adSettings: Optional[AdSettings] = None
     images: Optional[List[HttpUrl]] = []  # use List[str] if URLs may be unvalidated
     approval: Optional[Approval] = None
-    reactions: Optional[Reactions] = None
-    recommendations: Optional[Recommendations] = None
-    visibility: Optional[str] = None
-    createdAt: Optional[datetime] = None
-    updatedAt: Optional[datetime] = None
-    expiryDate: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
 
 class PaginatedAdResponse(BaseModel):
     page: int
