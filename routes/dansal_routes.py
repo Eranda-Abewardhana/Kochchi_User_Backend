@@ -1,11 +1,12 @@
 import json
 import os
 from fastapi import APIRouter, HTTPException, Body, Query, Depends, UploadFile, Form, File
-from typing import List, Optional
+from typing import List, Optional, Annotated
 from datetime import datetime, timedelta
 from math import radians, cos, sin, sqrt, atan2
 
 from fastapi.security import OAuth2PasswordBearer
+from starlette import status
 
 from databases.mongo import db
 from data_models.dansal_model import DansalEntry, DansalRequestModel
@@ -14,6 +15,8 @@ from bson import ObjectId
 from services.distance_radius_calculator import calculate_distance
 from services.file_upload_service import save_uploaded_images
 from utils.auth.jwt_functions import get_current_user
+from utils.examples.ads import ads_description
+from utils.examples.dansal import dansal_description
 
 dansal_router = APIRouter(prefix="/dansal", tags=["Dansal"])
 dansal_collection = db["dansal"]
@@ -23,38 +26,48 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 BASE_IMAGE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data_sources", "dansal_img"))
 
 # --- Endpoint: Create a new Dansal ---
-@dansal_router.post("/create", response_model=dict)
+@dansal_router.post(
+    "/create",
+    response_model=dict,
+    description=dansal_description,
+    summary="Create a new Dansal event with images and JSON data",
+    responses={
+        400: {"description": "Bad request"},
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+    status_code=status.HTTP_201_CREATED
+)
 async def create_dansal(
-    payload: DansalRequestModel,
-    data: str = Form(...),                          # JSON string
-    images: Optional[List[UploadFile]] = File(None), # Uploaded files
+    data: Annotated[str, Form(...)],                      # JSON string
+    images: Optional[List[UploadFile]] = File(None),      # Uploaded files
     current_user: dict = Depends(get_current_user)
 ):
-    try:
-        # Parse JSON string to model
-        entry_data = json.loads(data)
-        payload = DansalEntry(**entry_data)
 
-        # Insert initial data without images
+    try:
+        entry_data = json.loads(data)
+        validated = DansalRequestModel(**entry_data)           # Validate input
+        payload = DansalEntry(**validated.dict())              # Full model with images, timestamps
+
         result = await dansal_collection.insert_one(payload.dict())
         dansal_id = str(result.inserted_id)
 
-        # Save images if any
+        image_urls = []
         if images:
-            # Upload watermarked images to Cloudinary under folder 'dansals/{dansal_id}'
             image_urls = save_uploaded_images(
                 images,
                 cloud_folder=f"dansals/{dansal_id}"
             )
-
-            # Update the DB with image URLs
             await dansal_collection.update_one(
                 {"_id": ObjectId(dansal_id)},
                 {"$set": {"images": image_urls}}
             )
 
-        return {"message": "Dansal created", "id": dansal_id}
+        return {"message": "Dansal created", "id": dansal_id, "images": image_urls}
 
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in 'data' field")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
