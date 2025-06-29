@@ -501,19 +501,20 @@ async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
 
     random.shuffle(ads)
     selected = ads[:8]
-
     result = []
-    for ad in selected:
 
+    for ad in selected:
         try:
-            ad["ad_id"] = str(ad["_id"])  # ✅ Required for your AdOut model
-            ad["_id"] = str(ad["_id"])  # ✅ Prevent ObjectId serialization issue
+            ad["ad_id"] = str(ad["_id"])  # ✅ Convert ObjectId to str for ad_id
+            ad["_id"] = str(ad["_id"])    # ✅ Optional: sanitize for JSON output
             result.append(AdOut(**ad))
         except ValidationError as e:
             print(f"Validation error for ad {ad.get('_id')}: {e}")
-            continue  # Skip invalid ads
+            print("Offending ad:", ad)
+            continue  # Skip ads that fail validation
 
     return result
+
 @ads_router.get("/sorted-all", response_model=List[AdListingPreview])
 async def get_all_ads_sorted_by_priority(current_user: dict = Depends(get_current_user)):
     all_ads = []

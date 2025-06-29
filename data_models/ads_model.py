@@ -128,18 +128,18 @@ class AdListingPreview(BaseModel):
 
 class AdOut(BaseModel):
     ad_id: str
-    title: Optional[str]
-    description: Optional[str]
-    business: Optional[Business]
-    adSettings: Optional[AdSettings]
-    images: Optional[List[HttpUrl]] = []  # or just List[str] if not using validated URLs
-    approval: Optional[Approval]
-    reactions: Optional[Reactions]
-    recommendations: Optional[Recommendations]
-    visibility: Optional[str]
-    createdAt: Optional[datetime]
-    updatedAt: Optional[datetime]
-    expiryDate: Optional[datetime]
+    title: Optional[str] = None
+    description: Optional[str] = None
+    business: Optional[Business] = None
+    adSettings: Optional[AdSettings] = None
+    images: Optional[List[HttpUrl]] = []  # use List[str] if URLs may be unvalidated
+    approval: Optional[Approval] = None
+    reactions: Optional[Reactions] = None
+    recommendations: Optional[Recommendations] = None
+    visibility: Optional[str] = None
+    createdAt: Optional[datetime] = None
+    updatedAt: Optional[datetime] = None
+    expiryDate: Optional[datetime] = None
 
     class Config:
         orm_mode = True
