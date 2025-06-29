@@ -678,7 +678,12 @@ async def filter_ads(
     lng: Optional[float] = Query(None, description="Longitude for distance-based sorting"),
     current_user: dict = Depends(get_current_user)
 ):
-    query = {"visibility": "visible"}
+    # ✅ Only load approved and visible ads
+    query = {
+        "visibility": "visible",
+        "approval.status": "approved"
+    }
+
     if category and category.lower() != "all categories":
         query["business.category"] = category
     if specialty:
@@ -701,10 +706,10 @@ async def filter_ads(
 
         if lat is not None and lng is not None:
             if ad_lat is None or ad_lng is None:
-                continue  # skip ads with no usable location
+                continue
             distance = calculate_distance(lat, lng, ad_lat, ad_lng)
         else:
-            distance = 0  # no location filtering
+            distance = 0
 
         results.append(AdListingPreview(
             ad_id=str(ad["_id"]),
