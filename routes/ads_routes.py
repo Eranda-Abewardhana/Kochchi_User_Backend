@@ -17,7 +17,8 @@ from data_models.ads_model import (
     AdCreateResponse,
     AdDeleteResponse,
     AdApprovalResponse,
-    ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema
+    ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema,
+    ApprovedAdPreview, ApprovedAdListResponse
 )
 from fastapi import Query, Depends, HTTPException
 from typing import List
@@ -74,6 +75,66 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # Load environment variables
 load_dotenv()
 webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+@ads_router.get("/filter", response_model=List[AdListingPreview])
+async def filter_ads(
+    category: Optional[str] = Query(None, description="Filter by main category"),
+    specialty: Optional[str] = Query(None, description="Optional filter by specialty"),
+    city: Optional[str] = Query(None, description="Optional filter by city"),
+    lat: Optional[float] = Query(None, description="Latitude for distance-based sorting"),
+    lng: Optional[float] = Query(None, description="Longitude for distance-based sorting"),
+    current_user: dict = Depends(get_current_user)
+):
+    # ✅ Only load approved and visible ads
+    query = {
+        "visibility": "visible",
+        "approval.status": "approved"
+    }
+
+    if category and category.lower() != "all categories":
+        query["business.category"] = category
+    if specialty:
+        query["business.specialty"] = specialty
+    if city:
+        query["location.city"] = city
+
+    ads_cursor = ads_collection.find(query)
+    ads = await ads_cursor.to_list(length=None)
+
+    results = []
+    for ad in ads:
+        location = ad.get("location", {})
+        ad_lat = location.get("lat")
+        ad_lng = location.get("lon")
+
+        # Try extracting from googleMapLocation if lat/lon are not given
+        if (ad_lat is None or ad_lng is None) and location.get("googleMapLocation"):
+            ad_lat, ad_lng = extract_lat_lon_from_string(location["googleMapLocation"])
+
+        if lat is not None and lng is not None:
+            if ad_lat is None or ad_lng is None:
+                continue
+            distance = calculate_distance(lat, lng, ad_lat, ad_lng)
+            print(location.get('city'), distance)
+        else:
+            distance = 0
+
+        results.append(AdListingPreview(
+            ad_id=str(ad["_id"]),
+            title=ad.get("shopName", "Untitled Ad"),
+            image_url=ad.get("images", [None])[0],
+            city=location.get("city"),
+            district=location.get("district"),
+            category=ad.get("business", {}).get("category"),
+            contact_name=ad.get("contact", {}).get("address"),
+            contact_phone=ad.get("contact", {}).get("phone"),
+            priority_score=int(100 - distance)
+        ))
+
+    if lat is not None and lng is not None:
+        results.sort(key=lambda x: -x.priority_score)
+
+    return results
 
 @ads_router.post(
     "/create",
@@ -325,19 +386,38 @@ async def approve_ad_by_admin(
 
 
 
-@ads_router.get("/approve",status_code=status.HTTP_201_CREATED)
-async def get_approved_ads( current_user: dict = Depends(get_current_user)):
-    ads = await ads_collection.find({"approval.status": "approved"}).to_list(100)
-    result = [
-        {
-            "shopId": str(ad["_id"]),
-            "shopName": ad["shopName"],
-            "city": ad["location"]["city"],
-            "image": ad["images"][0] if ad.get("images") else None
-        }
-        for ad in ads
-    ]
-    return result
+@ads_router.get(
+    "/approve",
+    response_model=ApprovedAdListResponse,
+    summary="Get all approved ads",
+    description="Returns a list of approved ads including shop ID, name, city, and image.",
+    responses={
+        400: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        500: {"model": ErrorResponse}
+    },
+    status_code=status.HTTP_200_OK
+)
+async def get_approved_ads(current_user: dict = Depends(get_current_user)):
+    try:
+        email = current_user.get("email")
+        if not email:
+            raise HTTPException(status_code=401, detail="Unauthorized user")
+
+        ads = await ads_collection.find({"approval.status": "approved"}).to_list(100)
+        result = [
+            ApprovedAdPreview(
+                shopId=str(ad["_id"]),
+                shopName=ad.get("shopName", "Unknown"),
+                city=ad.get("location", {}).get("city", "Unknown"),
+                image=ad["images"][0] if ad.get("images") else None
+            )
+            for ad in ads
+        ]
+        return {"message": "Approved ads fetched successfully", "approvedAds": result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve approved ads: {str(e)}")
 
 
 @ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_201_CREATED)
@@ -669,61 +749,3 @@ async def stripe_webhook(request: Request, current_user: dict = Depends(get_curr
         print("📦 Unhandled event:", event["type"])
 
     return {"status": "success"}
-@ads_router.get("/filter", response_model=List[AdListingPreview])
-async def filter_ads(
-    category: Optional[str] = Query(None, description="Filter by main category"),
-    specialty: Optional[str] = Query(None, description="Optional filter by specialty"),
-    city: Optional[str] = Query(None, description="Optional filter by city"),
-    lat: Optional[float] = Query(None, description="Latitude for distance-based sorting"),
-    lng: Optional[float] = Query(None, description="Longitude for distance-based sorting"),
-    current_user: dict = Depends(get_current_user)
-):
-    # ✅ Only load approved and visible ads
-    query = {
-        "visibility": "visible",
-        "approval.status": "approved"
-    }
-
-    if category and category.lower() != "all categories":
-        query["business.category"] = category
-    if specialty:
-        query["business.specialty"] = specialty
-    if city:
-        query["location.city"] = city
-
-    ads_cursor = ads_collection.find(query)
-    ads = await ads_cursor.to_list(length=None)
-
-    results = []
-    for ad in ads:
-        location = ad.get("location", {})
-        ad_lat = location.get("lat")
-        ad_lng = location.get("lon")
-
-        # Try extracting from googleMapLocation if lat/lon are not given
-        if (ad_lat is None or ad_lng is None) and location.get("googleMapLocation"):
-            ad_lat, ad_lng = extract_lat_lon_from_string(location["googleMapLocation"])
-
-        if lat is not None and lng is not None:
-            if ad_lat is None or ad_lng is None:
-                continue
-            distance = calculate_distance(lat, lng, ad_lat, ad_lng)
-        else:
-            distance = 0
-
-        results.append(AdListingPreview(
-            ad_id=str(ad["_id"]),
-            title=ad.get("shopName", "Untitled Ad"),
-            image_url=ad.get("images", [None])[0],
-            city=location.get("city"),
-            district=location.get("district"),
-            category=ad.get("business", {}).get("category"),
-            contact_name=ad.get("contact", {}).get("address"),
-            contact_phone=ad.get("contact", {}).get("phone"),
-            priority_score=int(100 - distance)
-        ))
-
-    if lat is not None and lng is not None:
-        results.sort(key=lambda x: -x.priority_score)
-
-    return results

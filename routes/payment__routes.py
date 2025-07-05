@@ -4,8 +4,8 @@ import cloudinary.uploader
 from fastapi import APIRouter, Request, HTTPException
 from data_models.payment_model import PaymentRequest, RefundRequest
 from databases.mongo import db  # <-- Import directly from your database layer
-from bson import ObjectId
-
+from dotenv import load_dotenv
+load_dotenv()
 # FastAPI router
 payment_router = APIRouter(prefix="/payments", tags=["Payments"])
 

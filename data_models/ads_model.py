@@ -195,3 +195,15 @@ class AdCreateSchema(BaseModel):
                 "videoUrl": "https://example.com/video.mp4"
             }
         }
+from pydantic import BaseModel
+from typing import List, Optional
+
+class ApprovedAdPreview(BaseModel):
+    shopId: str
+    shopName: str
+    city: str
+    image: Optional[str] = None
+
+class ApprovedAdListResponse(BaseModel):
+    message: str
+    approvedAds: List[ApprovedAdPreview]

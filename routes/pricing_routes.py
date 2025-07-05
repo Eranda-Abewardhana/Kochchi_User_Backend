@@ -7,7 +7,8 @@ from data_models.pricing_model import UpdatePriceModel, UpdateDiscountRequest, F
     StripeProductUpdate
 from databases.mongo import db
 from datetime import datetime
-
+from dotenv import load_dotenv
+load_dotenv()
 # Stripe configuration from environment variables
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")

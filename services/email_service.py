@@ -3,9 +3,9 @@ import resend
 import os
 from fastapi import HTTPException
 from typing import Dict, Any
-
 from utils.email.email_template import get_verification_email_template, get_welcome_email_template, get_password_reset_email_template
-
+from dotenv import load_dotenv
+load_dotenv()
 
 class EmailService:
     def __init__(self):

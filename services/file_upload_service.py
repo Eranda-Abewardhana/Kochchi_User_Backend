@@ -6,7 +6,8 @@ from fastapi import UploadFile
 from PIL import Image, ImageDraw, ImageFont
 import cloudinary
 import cloudinary.uploader
-
+from dotenv import load_dotenv
+load_dotenv()
 # --- Load environment variables ---
 BASE_URL = os.getenv("BASE_URL", "http://localhost")
 PORT = os.getenv("PORT")
