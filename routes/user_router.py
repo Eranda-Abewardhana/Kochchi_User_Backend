@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer
 from typing import Optional
 from data_models.auth_model import  ErrorResponse
 from data_models.user_model import UserProfile, UpdateProfileRequest
-from utils.auth.jwt_functions import decode_token, hash_password
+from utils.auth.jwt_functions import decode_token, hash_password, get_current_user
 from databases.mongo import db
 from services.file_upload_service import save_uploaded_images
 
@@ -29,11 +29,9 @@ async def update_user_profile(
     last_name: Optional[str] = Form(None),
     phone_number: Optional[str] = Form(None),
     profile_pic: Optional[UploadFile] = File(None),
-    token: str = Depends(oauth2_scheme)
+    user = Depends(get_current_user)
 ):
-    email = decode_token(token)
-    user = await users_collection.find_one({"email": email})
-    user_id = str(user.inserted_id)
+    user_id = user["user_id"]
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
@@ -58,7 +56,7 @@ async def update_user_profile(
             update_data["profile_pic"] = image_urls[0]
     
     if update_data:
-        await users_collection.update_one({"email": email}, {"$set": update_data})
+        await users_collection.update_one({"email": user['email']}, {"$set": update_data})
 
-    updated_user = await users_collection.find_one({"email": email})
+    updated_user = await users_collection.find_one({"email": user['email']})
     return UserProfile(**updated_user)
