@@ -65,6 +65,7 @@ class UserResponse(BaseModel):
     email: Optional[str]
     first_name: str
     last_name: str
+    phone_number: Optional[str]
     role: str
     is_active: bool
 
