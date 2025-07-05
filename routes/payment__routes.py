@@ -12,8 +12,8 @@ payment_router = APIRouter(prefix="/payments", tags=["Payments"])
 # Stripe config
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-SUCCESS_URL = os.getenv("SUCCESS_URL", "https://kochchibazaar.lk/payment-success")
-CANCEL_URL = os.getenv("CANCEL_URL", "https://kochchibazaar.lk/payment-cancel")
+SUCCESS_URL = os.getenv("SUCCESS_URL", "http://127.0.0.1:8000/payment-success")
+CANCEL_URL = os.getenv("CANCEL_URL", "http://127.0.0.1:8000/payment-cancel")
 
 if not STRIPE_SECRET_KEY:
     raise RuntimeError("Missing STRIPE_SECRET_KEY")

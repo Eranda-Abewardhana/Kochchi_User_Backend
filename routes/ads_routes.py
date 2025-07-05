@@ -76,16 +76,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 load_dotenv()
 webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
+
 @ads_router.get("/filter", response_model=List[AdListingPreview])
 async def filter_ads(
-    category: Optional[str] = Query(None, description="Filter by main category"),
-    specialty: Optional[str] = Query(None, description="Optional filter by specialty"),
-    city: Optional[str] = Query(None, description="Optional filter by city"),
-    lat: Optional[float] = Query(None, description="Latitude for distance-based sorting"),
-    lng: Optional[float] = Query(None, description="Longitude for distance-based sorting"),
-    current_user: dict = Depends(get_current_user)
+        category: Optional[str] = Query(None, description="Filter by main category"),
+        specialty: Optional[str] = Query(None, description="Optional filter by specialty"),
+        city: Optional[str] = Query(None, description="Optional filter by city"),
+        lat: Optional[float] = Query(None, description="Latitude for distance-based sorting"),
+        lng: Optional[float] = Query(None, description="Longitude for distance-based sorting"),
+        current_user: dict = Depends(get_current_user)
 ):
-    # ✅ Only load approved and visible ads
     query = {
         "visibility": "visible",
         "approval.status": "approved"
@@ -103,11 +103,17 @@ async def filter_ads(
 
     results = []
     for ad in ads:
+        contact = ad.get("contact", {})
         location = ad.get("location", {})
+        business = ad.get("business", {})
+        schedule = ad.get("schedule", {})
+        adSettings = ad.get("adSettings", {})
+        approval = ad.get("approval", {})
+        reactions = ad.get("reactions", {})
+        recommendations = ad.get("recommendations", {})
+
         ad_lat = location.get("lat")
         ad_lng = location.get("lon")
-
-        # Try extracting from googleMapLocation if lat/lon are not given
         if (ad_lat is None or ad_lng is None) and location.get("googleMapLocation"):
             ad_lat, ad_lng = extract_lat_lon_from_string(location["googleMapLocation"])
 
@@ -115,7 +121,6 @@ async def filter_ads(
             if ad_lat is None or ad_lng is None:
                 continue
             distance = calculate_distance(lat, lng, ad_lat, ad_lng)
-            print(location.get('city'), distance)
         else:
             distance = 0
 
@@ -123,18 +128,78 @@ async def filter_ads(
             ad_id=str(ad["_id"]),
             title=ad.get("shopName", "Untitled Ad"),
             image_url=ad.get("images", [None])[0],
-            city=location.get("city"),
-            district=location.get("district"),
-            category=ad.get("business", {}).get("category"),
-            contact_name=ad.get("contact", {}).get("address"),
-            contact_phone=ad.get("contact", {}).get("phone"),
-            priority_score=int(100 - distance)
+            priority_score=int(100 - distance),
+
+            shopName=ad.get("shopName", ""),
+
+            # Contact
+            contact_address=contact.get("address", ""),
+            contact_phone=contact.get("phone", ""),
+            contact_whatsapp=contact.get("whatsapp"),
+            contact_email=contact.get("email"),
+            contact_website=contact.get("website"),
+
+            # Location
+            location_googleMapLocation=location.get("googleMapLocation"),
+            location_city=location.get("city", ""),
+            location_district=location.get("district", ""),
+            location_province=location.get("province"),
+            location_country=location.get("country", "Sri Lanka"),
+            location_state=location.get("state"),
+
+            # Business
+            business_category=business.get("category", ""),
+            business_specialty=business.get("specialty"),
+            business_tags=business.get("tags", []),
+            business_halalAvailable=business.get("halalAvailable", False),
+            business_description=business.get("description"),
+            business_menuOptions=business.get("menuOptions", []),
+
+            # Schedule
+            schedule_mon=schedule.get("mon", []),
+            schedule_tue=schedule.get("tue", []),
+            schedule_wed=schedule.get("wed", []),
+            schedule_thu=schedule.get("thu", []),
+            schedule_fri=schedule.get("fri", []),
+            schedule_sat=schedule.get("sat", []),
+            schedule_sun=schedule.get("sun", []),
+
+            # AdSettings
+            isTopAd=adSettings.get("isTopAd", False),
+            isCarousalAd=adSettings.get("isCarousalAd", False),
+            hasHalal=adSettings.get("hasHalal", False),
+
+            # Media
+            images=ad.get("images", []),
+            videoUrl=ad.get("videoUrl"),
+
+            # Approval
+            approval_status=approval.get("status", ""),
+            approval_adminId=approval.get("adminId"),
+            approval_adminComment=approval.get("adminComment"),
+            approval_approvedAt=approval.get("approvedAt"),
+
+            # Reactions
+            likes_count=reactions.get("likes", {}).get("count", 0),
+            likes_userIds=reactions.get("likes", {}).get("userIds", []),
+            unlikes_count=reactions.get("unlikes", {}).get("count", 0),
+            unlikes_userIds=reactions.get("unlikes", {}).get("userIds", []),
+
+            # Recommendations
+            recommendations_count=recommendations.get("count", 0),
+            recommendations_userIds=recommendations.get("userIds", []),
+
+            visibility=ad.get("visibility", ""),
+            expiryDate=ad.get("expiryDate"),
+            createdAt=ad.get("createdAt"),
+            updatedAt=ad.get("updatedAt")
         ))
 
     if lat is not None and lng is not None:
         results.sort(key=lambda x: -x.priority_score)
 
     return results
+
 
 @ads_router.post(
     "/create",
@@ -174,6 +239,7 @@ async def create_ad(
         expiry = now + timedelta(days=31)
 
         ad_data.update({
+            "userId": current_user["user_id"],
             "approval": {"status": "pending", "adminId": None, "adminComment": None, "approvedAt": None},
             "reactions": {"likes": {"count": 0, "userIds": []}, "unlikes": {"count": 0, "userIds": []}},
             "recommendations": {"count": 0, "userIds": []},
@@ -423,17 +489,14 @@ async def get_approved_ads(current_user: dict = Depends(get_current_user)):
 @ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_201_CREATED)
 async def get_my_ads( current_user: dict = Depends(get_current_user)):
     try:
-        email = current_user['email']
+        userId = current_user["user_id"]
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    ads = await ads_collection.find({"contact.email": email}).to_list(100)
+    ads = await ads_collection.find({"userId": userId}).to_list(100)
     return [
         {
-            "shopId": str(ad["_id"]),
-            "shopName": ad["shopName"],
-            "city": ad["location"]["city"],
-            "image": ad["images"][0] if ad.get("images") else None
+            ads if ad.get("images") else None
         }
         for ad in ads
     ]

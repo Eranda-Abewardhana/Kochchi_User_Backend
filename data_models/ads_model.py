@@ -125,12 +125,72 @@ class AdListingPreview(BaseModel):
     ad_id: str
     title: str
     image_url: Optional[str]
-    city: Optional[str]
-    district: Optional[str]
-    category: Optional[str]
-    contact_name: Optional[str]
-    contact_phone: Optional[str]
     priority_score: int
+
+    # Flattened AdBase
+    shopName: str
+
+    # Contact
+    contact_address: str
+    contact_phone: str
+    contact_whatsapp: Optional[str]
+    contact_email: EmailStr
+    contact_website: Optional[HttpUrl]
+
+    # Location
+    location_googleMapLocation: Optional[str]
+    location_city: str
+    location_district: str
+    location_province: Optional[str]
+    location_country: Optional[str] = "Sri Lanka"
+    location_state: Optional[str] = None
+
+    # Business
+    business_category: str
+    business_specialty: Optional[str]
+    business_tags: List[str]
+    business_halalAvailable: bool
+    business_description: Optional[str]
+    business_menuOptions: Optional[List[str]] = []
+
+    # Schedule (flattened per day)
+    schedule_mon: List[str]
+    schedule_tue: List[str]
+    schedule_wed: List[str]
+    schedule_thu: List[str]
+    schedule_fri: List[str]
+    schedule_sat: List[str]
+    schedule_sun: List[str]
+
+    # AdSettings
+    isTopAd: bool = False
+    isCarousalAd: bool = False
+    hasHalal: bool = False
+
+    # Images
+    images: List[str]
+    videoUrl: Optional[HttpUrl] = None
+
+    # Approval
+    approval_status: str
+    approval_adminId: Optional[str]
+    approval_adminComment: Optional[str]
+    approval_approvedAt: Optional[datetime]
+
+    # Reactions
+    likes_count: int = 0
+    likes_userIds: List[str] = []
+    unlikes_count: int = 0
+    unlikes_userIds: List[str] = []
+
+    # Recommendations
+    recommendations_count: int = 0
+    recommendations_userIds: List[str] = []
+
+    visibility: str
+    expiryDate: Optional[datetime]
+    createdAt: datetime
+    updatedAt: datetime
 
 class AdOut(BaseModel):
     title: Optional[str] = None
