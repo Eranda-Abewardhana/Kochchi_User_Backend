@@ -68,6 +68,7 @@ class UserResponse(BaseModel):
     phone_number: Optional[str]
     role: str
     is_active: bool
+    profile_pic: Optional[str]
 
 class ErrorResponse(BaseModel):
     detail: str

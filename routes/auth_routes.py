@@ -301,7 +301,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "last_name": current_user["last_name"],
         "phone_number": current_user.get("phone_number"),
         "role": current_user["role"],
-        "is_active": current_user.get("is_active", True)
+        "is_active": current_user.get("is_active", True),
+        "profile_pic": current_user.get("profile_pic"),
     }
 
 
