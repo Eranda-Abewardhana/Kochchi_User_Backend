@@ -177,7 +177,7 @@ async def login_user(credentials: LoginRequest):
 
     # Use username for admins, email for regular users
     identifier = user.get("username") if user.get("role") in ["admin", "super_admin"] else user["email"]
-    token = create_access_token({"sub": identifier})
+    token = create_access_token({"sub": identifier}, str(user["_id"]))
 
     return {
         "access_token": token,
