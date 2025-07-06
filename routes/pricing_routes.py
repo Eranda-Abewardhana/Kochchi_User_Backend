@@ -25,8 +25,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # ----------------------------
 # Get current prices with applied discounts
 # ----------------------------
-@pricing_router.get("/")
-async def get_ad_prices():
+# @pricing_router.get("/")
+# async def get_ad_prices():
     current_date = datetime.utcnow().date()
     result = {}
 
@@ -61,19 +61,19 @@ async def get_ad_prices():
 # ----------------------------
 # Update base price for ad type
 # ----------------------------
-@pricing_router.put("/update-price")
-async def update_base_price(data: UpdatePriceModel,  # ← image files uploaded
-    token: str = Depends(oauth2_scheme),):
-    result = await ad_pricing_collection.update_one(
-        {"type": data.ad_type},
-        {"$set": {"base_price": data.base_price}},
-        upsert=True
-    )
+# @pricing_router.put("/update-price")
+# async def update_base_price(data: UpdatePriceModel,  # ← image files uploaded
+#     token: str = Depends(oauth2_scheme),):
+#     result = await ad_pricing_collection.update_one(
+#         {"type": data.ad_type},
+#         {"$set": {"base_price": data.base_price}},
+#         upsert=True
+#     )
 
-    if result.modified_count == 0 and result.upserted_id is None:
-        raise HTTPException(status_code=400, detail="Failed to update base price")
+#     if result.modified_count == 0 and result.upserted_id is None:
+#         raise HTTPException(status_code=400, detail="Failed to update base price")
 
-    return {"message": f"{data.ad_type} ad price updated to {data.base_price}"}
+#     return {"message": f"{data.ad_type} ad price updated to {data.base_price}"}
 
 # ----------------------------
 # Update or add seasonal discount
@@ -192,29 +192,33 @@ async def deactivate_price(price_id: str):
     except Exception as e:
         print(f"Deactivate price error: {e}")
         raise HTTPException(status_code=500, detail="Failed to deactivate price")
+
 @pricing_router.get("/all")
 async def get_all_prices():
     try:
-        prices = stripe.Price.list(active=True, limit=100)  # Adjust limit as needed
+        prices = stripe.Price.list(active=True, limit=100, expand=["data.product"])
         result = []
 
         for price in prices.auto_paging_iter():
-            try:
-                product = stripe.Product.retrieve(price.product)
-                result.append({
-                    "price_id": price.id,
-                    "amount": price.unit_amount,
-                    "currency": price.currency,
-                    "recurring": price.recurring,
-                    "product": {
-                        "id": product.id,
-                        "name": product.name,
-                        "description": product.description
-                    }
-                })
-            except stripe.error.StripeError as e:
-                print(f"Error fetching product for price {price.id}: {e}")
-                continue
+            if not price.active:
+                continue  # Extra safety check
+
+            product = price.product  # Already expanded
+
+            if not product.active:
+                continue  # Skip prices tied to archived products
+
+            result.append({
+                "price_id": price.id,
+                "amount": price.unit_amount,
+                "currency": price.currency,
+                "recurring": price.recurring,
+                "product": {
+                    "id": product.id,
+                    "name": product.name,
+                    "description": product.description
+                }
+            })
 
         return {"prices": result}
 
