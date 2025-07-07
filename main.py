@@ -12,6 +12,7 @@ from routes.blog_routes import blog_router
 from routes.category_routes import category_router
 from routes.competition_routes import competition_router
 from routes.dansal_routes import dansal_router
+from routes.discount_router import discount_router
 from routes.notification_routes import notification_router
 from routes.payment__routes import payment_router
 from routes.popup_routes import popup_router
@@ -93,6 +94,7 @@ app.include_router(pricing_router)
 app.include_router(category_router)
 app.include_router(popup_router)
 app.include_router(notification_router)
+app.include_router(discount_router)
 
 os.makedirs('data_sources', exist_ok=True)
 app.mount("/data_sources", StaticFiles(directory="data_sources"), name="data_sources")
