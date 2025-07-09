@@ -89,3 +89,13 @@ async def get_nearby_dansal(lat: float = Query(...), lon: float = Query(...), ma
         return nearby
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@dansal_router.get("/all", response_model=List[DansalEntry], summary="Get all Dansal events", description="Returns all Dansal events without any filters.")
+async def get_all_dansal():
+    try:
+        all_dansal = await dansal_collection.find().to_list(length=None)
+        for d in all_dansal:
+            d["_id"] = str(d["_id"])
+        return [DansalEntry(**d) for d in all_dansal]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -815,3 +815,13 @@ async def stripe_webhook(request: Request, current_user: dict = Depends(get_curr
         print("📦 Unhandled event:", event["type"])
 
     return {"status": "success"}
+
+@ads_router.get("/all", response_model=List[AdOut], summary="Get all ads", description="Returns all ads without any filters or authorization.")
+async def get_all_ads():
+    try:
+        ads = await ads_collection.find().to_list(length=None)
+        for ad in ads:
+            ad["_id"] = str(ad["_id"])
+        return [AdOut(**ad) for ad in ads]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
