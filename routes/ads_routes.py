@@ -83,8 +83,7 @@ async def filter_ads(
         specialty: Optional[str] = Query(None, description="Optional filter by specialty"),
         city: Optional[str] = Query(None, description="Optional filter by city"),
         lat: Optional[float] = Query(None, description="Latitude for distance-based sorting"),
-        lng: Optional[float] = Query(None, description="Longitude for distance-based sorting"),
-        current_user: dict = Depends(get_current_user)
+        lng: Optional[float] = Query(None, description="Longitude for distance-based sorting")
 ):
     query = {
         "visibility": "visible",
@@ -339,7 +338,7 @@ async def create_ad(
         raise HTTPException(status_code=500, detail=f"Creation failed: {str(e)}")
 
 @ads_router.get("/carousal-ads", response_model=List[AdOut])
-async def get_carousal_ads(current_user: dict = Depends(get_current_user)):
+async def get_carousal_ads():
     print('hit')
     cursor = ads_collection.find({
         "adSettings.isCarousalAd": True,
@@ -464,12 +463,8 @@ async def approve_ad_by_admin(
     },
     status_code=status.HTTP_200_OK
 )
-async def get_approved_ads(current_user: dict = Depends(get_current_user)):
+async def get_approved_ads():
     try:
-        email = current_user.get("email")
-        if not email:
-            raise HTTPException(status_code=401, detail="Unauthorized user")
-
         ads = await ads_collection.find({"approval.status": "approved"}).to_list(100)
         result = [
             ApprovedAdPreview(
@@ -487,26 +482,19 @@ async def get_approved_ads(current_user: dict = Depends(get_current_user)):
 
 
 @ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_200_OK)
-async def get_my_ads(current_user: dict = Depends(get_current_user)):
-    try:
-        userId = current_user["user_id"]
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    ads = await ads_collection.find({"userId": userId}).to_list(100)
-
+async def get_my_ads():
+    ads = await ads_collection.find({}).to_list(100)
     result = []
     for ad in ads:
         if ad.get("images"):  # ✅ only include if images exist
             ad["id"] = str(ad["_id"])
             del ad["_id"]
             result.append(ad)
-
     return result
 
 
 @ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},status_code=status.HTTP_200_OK)
-async def get_ad_details(ad_id: str,  current_user: dict = Depends(get_current_user)):
+async def get_ad_details(ad_id: str):
     try:
         obj_id = ObjectId(ad_id)
     except Exception:
@@ -673,7 +661,6 @@ async def recommend_ad(ad_id: str, current_user: dict = Depends(get_current_user
 
 @ads_router.get("/top-full-ads", response_model=PaginatedAdResponse)
 async def get_full_top_ads(
-    current_user: dict = Depends(get_current_user),
     page: int = Query(1, ge=1)
 ):
     PAGE_SIZE = 24
@@ -713,7 +700,7 @@ async def get_full_top_ads(
     }
 
 @ads_router.get("/sorted-all", response_model=List[AdListingPreview])
-async def get_all_ads_sorted_by_priority(current_user: dict = Depends(get_current_user)):
+async def get_all_ads_sorted_by_priority():
     all_ads = []
 
     async for ad in ads_collection.find({"visibility": "visible"}):
@@ -749,8 +736,8 @@ async def get_all_ads_sorted_by_priority(current_user: dict = Depends(get_curren
 async def find_nearby_restaurants(
     lat: float = Query(..., description="Your latitude"),
     lng: float = Query(..., description="Your longitude"),
-    max_distance_km: float = Query(10.0, description="Search radius in kilometers"),
-    current_user: dict = Depends(get_current_user)):
+    max_distance_km: float = Query(10.0, description="Search radius in kilometers")
+):
     nearby_ads = []
 
     async for ad in ads_collection.find({"category": "Restaurants", "visibility": "visible"}):
@@ -816,12 +803,3 @@ async def stripe_webhook(request: Request, current_user: dict = Depends(get_curr
 
     return {"status": "success"}
 
-@ads_router.get("/all", response_model=List[AdOut], summary="Get all ads", description="Returns all ads without any filters or authorization.")
-async def get_all_ads():
-    try:
-        ads = await ads_collection.find().to_list(length=None)
-        for ad in ads:
-            ad["_id"] = str(ad["_id"])
-        return [AdOut(**ad) for ad in ads]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

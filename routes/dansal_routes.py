@@ -74,7 +74,7 @@ async def create_dansal(
 
 # --- Endpoint: Get nearby Dansal events ---
 @dansal_router.get("/nearby", response_model=List[DansalEntry])
-async def get_nearby_dansal(lat: float = Query(...), lon: float = Query(...), max_km: float = 20, current_user: dict = Depends(get_current_user)):
+async def get_nearby_dansal(lat: float = Query(...), lon: float = Query(...), max_km: float = 20):
     try:
         all_dansal = await dansal_collection.find().to_list(length=None)
         nearby = []
