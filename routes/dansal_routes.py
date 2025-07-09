@@ -99,3 +99,19 @@ async def get_all_dansal():
         return [DansalEntry(**d) for d in all_dansal]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@dansal_router.get("/my", response_model=List[DansalEntry], summary="Get my Dansal events", description="Returns all Dansal events created by the authorized user.")
+async def get_my_dansal(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("user_id")
+    all_dansal = await dansal_collection.find({"userId": user_id}).to_list(length=None)
+    for d in all_dansal:
+        d["_id"] = str(d["_id"])
+    return [DansalEntry(**d) for d in all_dansal]
+
+@dansal_router.delete("/delete/{dansal_id}", response_model=dict, summary="Delete a Dansal event", description="Delete a Dansal event by ID. Any authenticated user can delete.")
+async def delete_dansal(dansal_id: str, current_user: dict = Depends(get_current_user)):
+    dansal = await dansal_collection.find_one({"_id": ObjectId(dansal_id)})
+    if not dansal:
+        raise HTTPException(status_code=404, detail="Dansal not found")
+    await dansal_collection.delete_one({"_id": ObjectId(dansal_id)})
+    return {"message": "Dansal deleted successfully"}

@@ -482,14 +482,21 @@ async def get_approved_ads():
 
 
 @ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_200_OK)
-async def get_my_ads():
-    ads = await ads_collection.find({}).to_list(100)
+async def get_my_ads(current_user: dict = Depends(get_current_user)):
+    try:
+        userId = current_user["user_id"]
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    ads = await ads_collection.find({"userId": userId}).to_list(100)
+
     result = []
     for ad in ads:
         if ad.get("images"):  # ✅ only include if images exist
             ad["id"] = str(ad["_id"])
             del ad["_id"]
             result.append(ad)
+
     return result
 
 
