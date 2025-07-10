@@ -95,7 +95,8 @@ async def get_all_dansal():
     try:
         all_dansal = await dansal_collection.find().to_list(length=None)
         for d in all_dansal:
-            d["_id"] = str(d["_id"])
+            d["id"] = str(d["_id"])
+            d.pop("_id", None)
         return [DansalEntry(**d) for d in all_dansal]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

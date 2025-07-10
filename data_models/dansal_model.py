@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, HttpUrl
+from pydantic import BaseModel, EmailStr, HttpUrl, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -19,6 +19,7 @@ class DansalLocation(BaseModel):
 
 
 class DansalEntry(BaseModel):
+    id: Optional[str] = Field(None, alias="_id")  # MongoDB ID as 'id' in API
     title: str  # e.g., "Dansal for Vesak"
     organizer: DansalContact
     location: DansalLocation
