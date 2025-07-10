@@ -19,7 +19,7 @@ class DansalLocation(BaseModel):
 
 
 class DansalEntry(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")  # MongoDB ID as 'id' in API
+    id: Optional[str]
     title: str  # e.g., "Dansal for Vesak"
     organizer: DansalContact
     location: DansalLocation
