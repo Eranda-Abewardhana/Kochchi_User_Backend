@@ -18,7 +18,7 @@ from data_models.ads_model import (
     AdDeleteResponse,
     AdApprovalResponse,
     ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema,
-    ApprovedAdPreview, ApprovedAdListResponse
+    ApprovedAdPreview, ApprovedAdListResponse, AdListResponse
 )
 from fastapi import Query, Depends, HTTPException
 from typing import List
@@ -463,7 +463,7 @@ async def approve_ad_by_admin(
 
 @ads_router.get(
     "/approve",
-    response_model=ApprovedAdListResponse,
+    response_model=AdListResponse,
     summary="Get all approved ads",
     description="Returns a list of approved ads including shop ID, name, city, and image.",
     responses={
@@ -481,12 +481,11 @@ async def get_approved_ads():
                 shopId=str(ad["_id"]),
                 shopName=ad.get("shopName", "Unknown"),
                 city=ad.get("location", {}).get("city", "Unknown"),
-                image=ad["images"][0] if ad.get("images") else None
+                image=ad.get("images", [None])[0]
             )
             for ad in ads
         ]
-        return {"message": "Approved ads fetched successfully", "approvedAds": result}
-
+        return {"message": "Approved ads fetched successfully", "ads": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve approved ads: {str(e)}")
 @ads_router.get(
@@ -509,11 +508,14 @@ async def get_pending_ads():
                 shopId=str(ad["_id"]),
                 shopName=ad.get("shopName", "Unknown"),
                 city=ad.get("location", {}).get("city", "Unknown"),
-                image=ad["images"][0] if ad.get("images") else None
+                image=ad.get("images", [None])[0]
             )
             for ad in ads
         ]
-        return {"message": "Pending ads fetched successfully", "Pending Ads": result}
+        return {
+            "message": "Pending ads fetched successfully",
+            "approvedAds": result
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve pending ads: {str(e)}")
@@ -538,7 +540,7 @@ async def get_my_ads(current_user: dict = Depends(get_current_user)):
 
 @ads_router.get(
     "/rejected",
-    response_model=ApprovedAdListResponse,
+    response_model=AdListResponse,
     summary="Get all rejected ads",
     description="Returns a list of rejected ads including shop ID, name, city, and image.",
     responses={
@@ -556,12 +558,11 @@ async def get_rejected_ads():
                 shopId=str(ad["_id"]),
                 shopName=ad.get("shopName", "Unknown"),
                 city=ad.get("location", {}).get("city", "Unknown"),
-                image=ad["images"][0] if ad.get("images") else None
+                image=ad.get("images", [None])[0]
             )
             for ad in ads
         ]
-        return {"message": "Rejected ads fetched successfully", "rejected Ads": result}
-
+        return {"message": "Rejected ads fetched successfully", "ads": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve rejected ads: {str(e)}")
 

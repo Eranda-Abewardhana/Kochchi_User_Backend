@@ -267,3 +267,7 @@ class ApprovedAdPreview(BaseModel):
 class ApprovedAdListResponse(BaseModel):
     message: str
     approvedAds: List[ApprovedAdPreview]
+
+class AdListResponse(BaseModel):
+    message: str
+    ads: List[ApprovedAdPreview]
