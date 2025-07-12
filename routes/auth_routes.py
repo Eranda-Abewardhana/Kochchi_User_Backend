@@ -416,6 +416,7 @@ async def get_all_users_last_logins():
                 "last_name": user.get("last_name"),
                 "role": user.get("role"),
                 "last_login": user.get("last_login"),
+                "phone_number": user.get("phone_number"),
             }
             users.append(user_data)
 
