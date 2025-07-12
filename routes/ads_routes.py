@@ -270,12 +270,23 @@ async def create_ad(
 
         for item in all_prices:
             product_name = item.get("product", {}).get("name", "").lower()
+
             if is_top and "top_add_price" in product_name:
                 matched_price_ids.append(item["price_id"])
                 total_amount += item.get("amount", 0)
-            elif is_carousal and "carosal_add_price" in product_name:
+
+            if is_carousal and "carosal_add_price" in product_name:
                 matched_price_ids.append(item["price_id"])
                 total_amount += item.get("amount", 0)
+
+        # Add base price only if neither top nor carousal is selected
+        if not is_top and not is_carousal:
+            for item in all_prices:
+                product_name = item.get("product", {}).get("name", "").lower()
+                if "base_price" in product_name:
+                    matched_price_ids.append(item["price_id"])
+                    total_amount += item.get("amount", 0)
+                    break  # No need to continue once found
 
         # Remove duplicates if both are true
         matched_price_ids = list(set(matched_price_ids))
