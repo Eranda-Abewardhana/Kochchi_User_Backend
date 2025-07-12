@@ -77,6 +77,9 @@ load_dotenv()
 webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 
+from pymongo.errors import ServerSelectionTimeoutError
+from fastapi.responses import JSONResponse
+
 @ads_router.get("/filter", response_model=List[AdListingPreview])
 async def filter_ads(
         category: Optional[str] = Query(None, description="Filter by main category"),
@@ -97,8 +100,14 @@ async def filter_ads(
     if city:
         query["location.city"] = city
 
-    ads_cursor = ads_collection.find(query)
-    ads = await ads_cursor.to_list(length=None)
+    try:
+        ads_cursor = ads_collection.find(query)
+        ads = await ads_cursor.to_list(length=None)
+    except ServerSelectionTimeoutError as e:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Database connection failed. Please try again later.", "details": str(e)}
+        )
 
     results = []
     for ad in ads:
@@ -198,6 +207,7 @@ async def filter_ads(
         results.sort(key=lambda x: -x.priority_score)
 
     return results
+
 
 
 @ads_router.post(
@@ -479,7 +489,34 @@ async def get_approved_ads():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve approved ads: {str(e)}")
+@ads_router.get(
+    "/pending",
+    response_model=ApprovedAdListResponse,
+    summary="Get all pending ads",
+    description="Returns a list of pending ads including shop ID, name, city, and image.",
+    responses={
+        400: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        500: {"model": ErrorResponse}
+    },
+    status_code=status.HTTP_200_OK
+)
+async def get_pending_ads():
+    try:
+        ads = await ads_collection.find({"approval.status": "pending"}).to_list(100)
+        result = [
+            ApprovedAdPreview(
+                shopId=str(ad["_id"]),
+                shopName=ad.get("shopName", "Unknown"),
+                city=ad.get("location", {}).get("city", "Unknown"),
+                image=ad["images"][0] if ad.get("images") else None
+            )
+            for ad in ads
+        ]
+        return {"message": "Pending ads fetched successfully", "Pending Ads": result}
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve pending ads: {str(e)}")
 
 @ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_200_OK)
 async def get_my_ads(current_user: dict = Depends(get_current_user)):
@@ -499,7 +536,52 @@ async def get_my_ads(current_user: dict = Depends(get_current_user)):
 
     return result
 
+@ads_router.get(
+    "/rejected",
+    response_model=ApprovedAdListResponse,
+    summary="Get all rejected ads",
+    description="Returns a list of rejected ads including shop ID, name, city, and image.",
+    responses={
+        400: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+        500: {"model": ErrorResponse}
+    },
+    status_code=status.HTTP_200_OK
+)
+async def get_rejected_ads():
+    try:
+        ads = await ads_collection.find({"approval.status": "rejected"}).to_list(100)
+        result = [
+            ApprovedAdPreview(
+                shopId=str(ad["_id"]),
+                shopName=ad.get("shopName", "Unknown"),
+                city=ad.get("location", {}).get("city", "Unknown"),
+                image=ad["images"][0] if ad.get("images") else None
+            )
+            for ad in ads
+        ]
+        return {"message": "Rejected ads fetched successfully", "rejected Ads": result}
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve rejected ads: {str(e)}")
+
+@ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_200_OK)
+async def get_my_ads(current_user: dict = Depends(get_current_user)):
+    try:
+        userId = current_user["user_id"]
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    ads = await ads_collection.find({"userId": userId}).to_list(100)
+
+    result = []
+    for ad in ads:
+        if ad.get("images"):  # ✅ only include if images exist
+            ad["id"] = str(ad["_id"])
+            del ad["_id"]
+            result.append(ad)
+
+    return result
 @ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},status_code=status.HTTP_200_OK)
 async def get_ad_details(ad_id: str):
     try:
