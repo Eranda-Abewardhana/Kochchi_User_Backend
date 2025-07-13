@@ -442,7 +442,7 @@ async def approve_ad_by_admin(
         "approval.adminId": admin_id,
         "approval.adminComment": comment,
         "approval.approvedAt": datetime.utcnow(),
-        "visibility": "visible" if status == "approved" else "hidden",
+        "visibility": "visible",
         "updatedAt": datetime.utcnow()
     }
 
