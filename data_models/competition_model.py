@@ -7,7 +7,7 @@ class Winner(BaseModel):
     name: str
     place: int
     location: str
-    imageUrl: Optional[HttpUrl] = None
+    imageUrl: HttpUrl
 
 class Competition(BaseModel):
     id: Optional[str]
@@ -16,7 +16,7 @@ class Competition(BaseModel):
     img_url: Optional[HttpUrl] = None
     createdAt: datetime
     is_completed: bool = False
-    winners: List[Winner] = []
+    winners: List[Winner]  # ✅ Now expects list of Winner objects
 
 class CreateCompetitionRequest(BaseModel):
     title: str

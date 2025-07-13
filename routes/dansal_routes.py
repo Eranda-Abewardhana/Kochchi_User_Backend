@@ -118,8 +118,24 @@ async def get_all_dansal():
     async for d in dansal_collection.find().sort("createdAt", -1):
         d["id"] = str(d["_id"])
         del d["_id"]
-        dansals.append(DansalEntry(**d))
+
+        # Ensure nested fields exist
+        d.setdefault("organizer", {})
+        d["organizer"].setdefault("name", "")
+        d["organizer"].setdefault("phone", "")
+        d["organizer"].setdefault("whatsapp", "")
+
+        d.setdefault("location", {})
+        d["location"].setdefault("city", "")
+        d["location"].setdefault("district", "")
+
+        try:
+            dansals.append(DansalEntry(**d))
+        except Exception as e:
+            print("Skipping invalid dansal:", e)
+
     return dansals
+
 
 @dansal_router.get("/my", response_model=List[DansalEntry], summary="Get my Dansal events", description="Returns all Dansal events created by the authorized user.")
 async def get_my_dansal(current_user: dict = Depends(get_current_user)):
