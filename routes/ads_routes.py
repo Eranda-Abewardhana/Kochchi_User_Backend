@@ -18,7 +18,7 @@ from data_models.ads_model import (
     AdDeleteResponse,
     AdApprovalResponse,
     ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema,
-    ApprovedAdPreview, ApprovedAdListResponse, AdListResponse
+    ApprovedAdPreview, ApprovedAdListResponse, AdListResponse, SimplifiedAdPreview
 )
 from fastapi import Query, Depends, HTTPException
 from typing import List
@@ -275,18 +275,14 @@ async def create_ad(
                 matched_price_ids.append(item["price_id"])
                 total_amount += item.get("amount", 0)
 
-            if is_carousal and "carosal_add_price" in product_name:
+            elif is_carousal and "carosal_add_price" in product_name:
                 matched_price_ids.append(item["price_id"])
                 total_amount += item.get("amount", 0)
 
-        # Add base price only if neither top nor carousal is selected
-        if not is_top and not is_carousal:
-            for item in all_prices:
-                product_name = item.get("product", {}).get("name", "").lower()
-                if "base_price" in product_name:
+            elif "base_price" in product_name:
                     matched_price_ids.append(item["price_id"])
                     total_amount += item.get("amount", 0)
-                    break  # No need to continue once found
+
 
         # Remove duplicates if both are true
         matched_price_ids = list(set(matched_price_ids))
@@ -385,66 +381,7 @@ async def get_carousal_ads():
             continue  # Skip ads that fail validation
 
     return result
-@ads_router.delete(
-    "/{ad_id}",
-    response_model=AdDeleteResponse,
-    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
-    status_code=status.HTTP_200_OK
-)
-async def delete_ad(ad_id: str,  current_user: dict = Depends(get_current_user)):
-    try:
-        obj_id = ObjectId(ad_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid ad ID format")
 
-    result = await ads_collection.delete_one({"_id": obj_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Ad not found")
-
-    try:
-        image_folder = os.path.join(BASE_IMAGE_PATH, ad_id)
-        if os.path.exists(image_folder):
-            shutil.rmtree(image_folder)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete image folder: {str(e)}")
-
-    return {"message": "Ad deleted successfully"}
-
-
-@ads_router.post(
-    "/{ad_id}/approve",
-    response_model=AdApprovalResponse,
-    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
-status_code=status.HTTP_201_CREATED
-)
-async def approve_ad_by_admin(
-    ad_id: str,
-    status: str = Form(...),
-    comment: Optional[str] = Form(None),
-    current_user: dict = Depends(get_admin_or_super)
-):
-    # Validate status input
-    if status not in ["approved", "rejected"]:
-        raise HTTPException(status_code=400, detail="Status must be either 'approved' or 'rejected'")
-
-    # Validate ObjectId
-    try:
-        obj_id = ObjectId(ad_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid ad ID format")
-
-    # Extract admin identity securely
-    admin_id = current_user.get("username") or current_user.get("email")
-
-    # Build update payload
-    update_data = {
-        "approval.status": status,
-        "approval.adminId": admin_id,
-        "approval.adminComment": comment,
-        "approval.approvedAt": datetime.utcnow(),
-        "visibility": "visible",
-        "updatedAt": datetime.utcnow()
-    }
 
     # Perform the update
     result = await ads_collection.update_one({"_id": obj_id}, {"$set": update_data})
@@ -594,6 +531,174 @@ async def get_my_ads(current_user: dict = Depends(get_current_user)):
             result.append(ad)
 
     return result
+
+@ads_router.get("/top-full-ads", response_model=PaginatedAdResponse)
+async def get_full_top_ads(
+    page: int = Query(1, ge=1)
+):
+    PAGE_SIZE = 24
+
+    # 🔍 Fetch top ads only (visible)
+    ads_cursor = ads_collection.find({"adSettings.isTopAd": True, "visibility": "visible"})
+    all_ads = await ads_cursor.to_list(length=None)
+
+    if not all_ads:
+        raise HTTPException(status_code=404, detail="No top ads found")
+
+    # 🔀 Shuffle for random ordering every time
+    random.shuffle(all_ads)
+
+    total_ads = len(all_ads)
+    total_pages = (total_ads + PAGE_SIZE - 1) // PAGE_SIZE
+
+    if page > total_pages:
+        raise HTTPException(status_code=400, detail=f"Page {page} exceeds total pages {total_pages}")
+
+    # ⏬ Paginate
+    start = (page - 1) * PAGE_SIZE
+    end = start + PAGE_SIZE
+    page_ads = all_ads[start:end]
+
+    # 🔁 Format each ad
+    results = []
+    for ad in page_ads:
+        ad["ad_id"] = str(ad["_id"])  # Alias for model compatibility
+        results.append(AdOut(**ad))
+
+    return {
+        "page": page,
+        "total_pages": total_pages,
+        "total_ads": total_ads,
+        "results": results
+    }
+
+@ads_router.get("/sorted-all", response_model=List[SimplifiedAdPreview])
+async def get_all_ads_sorted_by_priority():
+    all_ads = []
+
+    async for ad in ads_collection.find({"visibility": "visible"}):
+        score = 0
+
+        # Prioritize night-time / PM businesses
+        open_time = ad.get("business", {}).get("openTime", "").lower()
+        if "pm" in open_time or "night" in open_time:
+            score += 1
+
+        ad_data = SimplifiedAdPreview(
+            ad_id=str(ad["_id"]),
+            title=ad.get("business", {}).get("title", "Untitled Ad"),
+            image_url=ad.get("images", [None])[0],
+            city=ad.get("location", {}).get("city"),
+            district=ad.get("location", {}).get("district"),
+            category=ad.get("category"),
+            contact_name=ad.get("contact", {}).get("name"),
+            contact_phone=ad.get("contact", {}).get("phone"),
+            priority_score=score
+        )
+
+        all_ads.append(ad_data)
+
+    if not all_ads:
+        raise HTTPException(status_code=404, detail="No ads found")
+
+    # Sort by score descending
+    all_ads.sort(key=lambda x: x.priority_score, reverse=True)
+
+    return all_ads
+@ads_router.get("/restaurants-nearby", response_model=List[AdListingPreview])
+async def find_nearby_restaurants(
+    lat: float = Query(..., description="Your latitude"),
+    lng: float = Query(..., description="Your longitude"),
+    max_distance_km: float = Query(10.0, description="Search radius in kilometers")
+):
+    nearby_ads = []
+
+    async for ad in ads_collection.find({"category": "Restaurants", "visibility": "visible"}):
+        location = ad.get("location", {})
+        ad_lat = location.get("lat")
+        ad_lng = location.get("lng")
+
+        if ad_lat is None or ad_lng is None:
+            continue
+
+        distance = calculate_distance(lat, lng, ad_lat, ad_lng)
+
+        if distance <= max_distance_km:
+            nearby_ads.append(
+                AdListingPreview(
+                    ad_id=str(ad["_id"]),
+                    title=ad.get("business", {}).get("title", "Untitled Ad"),
+                    image_url=ad.get("images", [None])[0],
+                    city=location.get("city"),
+                    district=location.get("district"),
+                    category=ad.get("category"),
+                    contact_name=ad.get("contact", {}).get("name"),
+                    contact_phone=ad.get("contact", {}).get("phone"),
+                    priority_score=0  # or set based on logic
+                )
+            )
+
+    return nearby_ads
+@ads_router.delete(
+    "/{ad_id}",
+    response_model=AdDeleteResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    status_code=status.HTTP_200_OK
+)
+async def delete_ad(ad_id: str,  current_user: dict = Depends(get_current_user)):
+    try:
+        obj_id = ObjectId(ad_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid ad ID format")
+
+    result = await ads_collection.delete_one({"_id": obj_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Ad not found")
+
+    try:
+        image_folder = os.path.join(BASE_IMAGE_PATH, ad_id)
+        if os.path.exists(image_folder):
+            shutil.rmtree(image_folder)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete image folder: {str(e)}")
+
+    return {"message": "Ad deleted successfully"}
+
+
+@ads_router.post(
+    "/{ad_id}/approve",
+    response_model=AdApprovalResponse,
+    responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+status_code=status.HTTP_201_CREATED
+)
+async def approve_ad_by_admin(
+    ad_id: str,
+    status: str = Form(...),
+    comment: Optional[str] = Form(None),
+    current_user: dict = Depends(get_admin_or_super)
+):
+    # Validate status input
+    if status not in ["approved", "rejected"]:
+        raise HTTPException(status_code=400, detail="Status must be either 'approved' or 'rejected'")
+
+    # Validate ObjectId
+    try:
+        obj_id = ObjectId(ad_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid ad ID format")
+
+    # Extract admin identity securely
+    admin_id = current_user.get("username") or current_user.get("email")
+
+    # Build update payload
+    update_data = {
+        "approval.status": status,
+        "approval.adminId": admin_id,
+        "approval.adminComment": comment,
+        "approval.approvedAt": datetime.utcnow(),
+        "visibility": "visible",
+        "updatedAt": datetime.utcnow()
+    }
 @ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},status_code=status.HTTP_200_OK)
 async def get_ad_details(ad_id: str):
     try:
@@ -759,114 +864,6 @@ async def recommend_ad(ad_id: str, current_user: dict = Depends(get_current_user
         raise HTTPException(status_code=500, detail=f"Failed to update recommendations: {str(e)}")
 
     return {"message": "Ad recommended successfully"}
-
-@ads_router.get("/top-full-ads", response_model=PaginatedAdResponse)
-async def get_full_top_ads(
-    page: int = Query(1, ge=1)
-):
-    PAGE_SIZE = 24
-
-    # 🔍 Fetch top ads only (visible)
-    ads_cursor = ads_collection.find({"adSettings.isTopAd": True, "visibility": "visible"})
-    all_ads = await ads_cursor.to_list(length=None)
-
-    if not all_ads:
-        raise HTTPException(status_code=404, detail="No top ads found")
-
-    # 🔀 Shuffle for random ordering every time
-    random.shuffle(all_ads)
-
-    total_ads = len(all_ads)
-    total_pages = (total_ads + PAGE_SIZE - 1) // PAGE_SIZE
-
-    if page > total_pages:
-        raise HTTPException(status_code=400, detail=f"Page {page} exceeds total pages {total_pages}")
-
-    # ⏬ Paginate
-    start = (page - 1) * PAGE_SIZE
-    end = start + PAGE_SIZE
-    page_ads = all_ads[start:end]
-
-    # 🔁 Format each ad
-    results = []
-    for ad in page_ads:
-        ad["ad_id"] = str(ad["_id"])  # Alias for model compatibility
-        results.append(AdOut(**ad))
-
-    return {
-        "page": page,
-        "total_pages": total_pages,
-        "total_ads": total_ads,
-        "results": results
-    }
-
-@ads_router.get("/sorted-all", response_model=List[AdListingPreview])
-async def get_all_ads_sorted_by_priority():
-    all_ads = []
-
-    async for ad in ads_collection.find({"visibility": "visible"}):
-        score = 0
-
-        # Prioritize night-time / PM businesses
-        open_time = ad.get("business", {}).get("openTime", "").lower()
-        if "pm" in open_time or "night" in open_time:
-            score += 1
-
-        ad_data = AdListingPreview(
-            ad_id=str(ad["_id"]),
-            title=ad.get("business", {}).get("title", "Untitled Ad"),
-            image_url=ad.get("images", [None])[0],
-            city=ad.get("location", {}).get("city"),
-            district=ad.get("location", {}).get("district"),
-            category=ad.get("category"),
-            contact_name=ad.get("contact", {}).get("name"),
-            contact_phone=ad.get("contact", {}).get("phone"),
-            priority_score=score
-        )
-
-        all_ads.append(ad_data)
-
-    if not all_ads:
-        raise HTTPException(status_code=404, detail="No ads found")
-
-    # Sort by score descending
-    all_ads.sort(key=lambda x: x.priority_score, reverse=True)
-
-    return all_ads
-@ads_router.get("/restaurants-nearby", response_model=List[AdListingPreview])
-async def find_nearby_restaurants(
-    lat: float = Query(..., description="Your latitude"),
-    lng: float = Query(..., description="Your longitude"),
-    max_distance_km: float = Query(10.0, description="Search radius in kilometers")
-):
-    nearby_ads = []
-
-    async for ad in ads_collection.find({"category": "Restaurants", "visibility": "visible"}):
-        location = ad.get("location", {})
-        ad_lat = location.get("lat")
-        ad_lng = location.get("lng")
-
-        if ad_lat is None or ad_lng is None:
-            continue
-
-        distance = calculate_distance(lat, lng, ad_lat, ad_lng)
-
-        if distance <= max_distance_km:
-            nearby_ads.append(
-                AdListingPreview(
-                    ad_id=str(ad["_id"]),
-                    title=ad.get("business", {}).get("title", "Untitled Ad"),
-                    image_url=ad.get("images", [None])[0],
-                    city=location.get("city"),
-                    district=location.get("district"),
-                    category=ad.get("category"),
-                    contact_name=ad.get("contact", {}).get("name"),
-                    contact_phone=ad.get("contact", {}).get("phone"),
-                    priority_score=0  # or set based on logic
-                )
-            )
-
-    return nearby_ads
 @ads_router.post("/webhook")
 async def stripe_webhook(request: Request, current_user: dict = Depends(get_current_user)):
     payload = await request.body()

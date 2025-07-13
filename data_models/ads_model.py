@@ -271,3 +271,13 @@ class ApprovedAdListResponse(BaseModel):
 class AdListResponse(BaseModel):
     message: str
     ads: List[ApprovedAdPreview]
+class SimplifiedAdPreview(BaseModel):
+    ad_id: str
+    title: str
+    image_url: Optional[str]
+    city: Optional[str]
+    district: Optional[str]
+    category: Optional[str]
+    contact_name: Optional[str]
+    contact_phone: Optional[str]
+    priority_score: int
