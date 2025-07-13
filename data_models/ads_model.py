@@ -104,7 +104,10 @@ class AdDeleteResponse(BaseModel):
 
 
 class AdApprovalResponse(BaseModel):
-    message: str
+    ad_id: str
+    status: str
+    comment: Optional[str]
+    approved_by: str
 
 
 class ErrorResponse(BaseModel):

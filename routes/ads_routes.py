@@ -135,7 +135,7 @@ async def filter_ads(
         results.append(AdListingPreview(
             ad_id=str(ad["_id"]),
             title=ad.get("shopName", "Untitled Ad"),
-            image_url=ad.get("images", [None])[0],
+            image_url=ad.get("images", [None])[0] if ad.get("images") else None,
             priority_score=int(100 - distance),
 
             shopName=ad.get("shopName", ""),
@@ -411,7 +411,7 @@ async def get_carousal_ads():
 
 @ads_router.get(
     "/approve",
-    response_model=AdListResponse,
+    response_model=List[AdListingPreview],
     summary="Get all approved ads",
     description="Returns a list of approved ads including shop ID, name, city, and image.",
     responses={
@@ -423,22 +423,97 @@ async def get_carousal_ads():
 )
 async def get_approved_ads():
     try:
-        ads = await ads_collection.find({"approval.status": "approved"}).to_list(100)
-        result = [
-            ApprovedAdPreview(
-                shopId=str(ad["_id"]),
-                shopName=ad.get("shopName", "Unknown"),
-                city=ad.get("location", {}).get("city", "Unknown"),
-                image=ad.get("images", [None])[0]
-            )
-            for ad in ads
-        ]
-        return {"message": "Approved ads fetched successfully", "ads": result}
+        ads = await ads_collection.find({"approval.status": "approved"}).to_list(length=None)
+        results = []
+        for ad in ads:
+            contact = ad.get("contact", {})
+            location = ad.get("location", {})
+            business = ad.get("business", {})
+            schedule = ad.get("schedule", {})
+            adSettings = ad.get("adSettings", {})
+            approval = ad.get("approval", {})
+            reactions = ad.get("reactions", {})
+            recommendations = ad.get("recommendations", {})
+
+            ad_lat = location.get("lat")
+            ad_lng = location.get("lon")
+
+            results.append(AdListingPreview(
+                ad_id=str(ad["_id"]),
+                title=ad.get("shopName", "Untitled Ad"),
+                image_url=ad.get("images", [None])[0] if ad.get("images") else None,
+                priority_score=0,
+                shopName=ad.get("shopName", ""),
+
+                # Contact
+                contact_address=contact.get("address", ""),
+                contact_phone=contact.get("phone", ""),
+                contact_whatsapp=contact.get("whatsapp"),
+                contact_email=contact.get("email"),
+                contact_website=contact.get("website"),
+
+                # Location
+                location_googleMapLocation=location.get("googleMapLocation"),
+                location_city=location.get("city", ""),
+                location_district=location.get("district", ""),
+                location_province=location.get("province"),
+                location_country=location.get("country", "Sri Lanka"),
+                location_state=location.get("state"),
+
+                # Business
+                business_category=business.get("category", ""),
+                business_specialty=business.get("specialty"),
+                business_tags=business.get("tags", []),
+                business_halalAvailable=business.get("halalAvailable", False),
+                business_description=business.get("description"),
+                business_menuOptions=business.get("menuOptions", []),
+
+                # Schedule
+                schedule_mon=schedule.get("mon", []),
+                schedule_tue=schedule.get("tue", []),
+                schedule_wed=schedule.get("wed", []),
+                schedule_thu=schedule.get("thu", []),
+                schedule_fri=schedule.get("fri", []),
+                schedule_sat=schedule.get("sat", []),
+                schedule_sun=schedule.get("sun", []),
+
+                # AdSettings
+                isTopAd=adSettings.get("isTopAd", False),
+                isCarousalAd=adSettings.get("isCarousalAd", False),
+                hasHalal=adSettings.get("hasHalal", False),
+
+                # Media
+                images=ad.get("images", []),
+                videoUrl=ad.get("videoUrl"),
+
+                # Approval
+                approval_status=approval.get("status", ""),
+                approval_adminId=approval.get("adminId"),
+                approval_adminComment=approval.get("adminComment"),
+                approval_approvedAt=approval.get("approvedAt"),
+
+                # Reactions
+                likes_count=reactions.get("likes", {}).get("count", 0),
+                likes_userIds=reactions.get("likes", {}).get("userIds", []),
+                unlikes_count=reactions.get("unlikes", {}).get("count", 0),
+                unlikes_userIds=reactions.get("unlikes", {}).get("userIds", []),
+
+                # Recommendations
+                recommendations_count=recommendations.get("count", 0),
+                recommendations_userIds=recommendations.get("userIds", []),
+
+                visibility=ad.get("visibility", ""),
+                expiryDate=ad.get("expiryDate"),
+                createdAt=ad.get("createdAt"),
+                updatedAt=ad.get("updatedAt")
+        ))
+
+        return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve approved ads: {str(e)}")
 @ads_router.get(
     "/pending",
-    response_model=ApprovedAdListResponse,
+    response_model=List[AdListingPreview],
     summary="Get all pending ads",
     description="Returns a list of pending ads including shop ID, name, city, and image.",
     responses={
@@ -450,20 +525,92 @@ async def get_approved_ads():
 )
 async def get_pending_ads():
     try:
-        ads = await ads_collection.find({"approval.status": "pending"}).to_list(100)
-        result = [
-            ApprovedAdPreview(
-                shopId=str(ad["_id"]),
-                shopName=ad.get("shopName", "Unknown"),
-                city=ad.get("location", {}).get("city", "Unknown"),
-                image=ad.get("images", [None])[0]
-            )
-            for ad in ads
-        ]
-        return {
-            "message": "Pending ads fetched successfully",
-            "approvedAds": result
-        }
+        ads = await ads_collection.find({"approval.status": "pending"}).to_list(length=None)
+        results = []
+        for ad in ads:
+            contact = ad.get("contact", {})
+            location = ad.get("location", {})
+            business = ad.get("business", {})
+            schedule = ad.get("schedule", {})
+            adSettings = ad.get("adSettings", {})
+            approval = ad.get("approval", {})
+            reactions = ad.get("reactions", {})
+            recommendations = ad.get("recommendations", {})
+
+            ad_lat = location.get("lat")
+            ad_lng = location.get("lon")
+
+            results.append(AdListingPreview(
+                ad_id=str(ad["_id"]),
+                title=ad.get("shopName", "Untitled Ad"),
+                image_url=ad.get("images", [None])[0] if ad.get("images") else None,
+                priority_score=0,
+                shopName=ad.get("shopName", ""),
+
+                # Contact
+                contact_address=contact.get("address", ""),
+                contact_phone=contact.get("phone", ""),
+                contact_whatsapp=contact.get("whatsapp"),
+                contact_email=contact.get("email"),
+                contact_website=contact.get("website"),
+
+                # Location
+                location_googleMapLocation=location.get("googleMapLocation"),
+                location_city=location.get("city", ""),
+                location_district=location.get("district", ""),
+                location_province=location.get("province"),
+                location_country=location.get("country", "Sri Lanka"),
+                location_state=location.get("state"),
+
+                # Business
+                business_category=business.get("category", ""),
+                business_specialty=business.get("specialty"),
+                business_tags=business.get("tags", []),
+                business_halalAvailable=business.get("halalAvailable", False),
+                business_description=business.get("description"),
+                business_menuOptions=business.get("menuOptions", []),
+
+                # Schedule
+                schedule_mon=schedule.get("mon", []),
+                schedule_tue=schedule.get("tue", []),
+                schedule_wed=schedule.get("wed", []),
+                schedule_thu=schedule.get("thu", []),
+                schedule_fri=schedule.get("fri", []),
+                schedule_sat=schedule.get("sat", []),
+                schedule_sun=schedule.get("sun", []),
+
+                # AdSettings
+                isTopAd=adSettings.get("isTopAd", False),
+                isCarousalAd=adSettings.get("isCarousalAd", False),
+                hasHalal=adSettings.get("hasHalal", False),
+
+                # Media
+                images=ad.get("images", []),
+                videoUrl=ad.get("videoUrl"),
+
+                # Approval
+                approval_status=approval.get("status", ""),
+                approval_adminId=approval.get("adminId"),
+                approval_adminComment=approval.get("adminComment"),
+                approval_approvedAt=approval.get("approvedAt"),
+
+                # Reactions
+                likes_count=reactions.get("likes", {}).get("count", 0),
+                likes_userIds=reactions.get("likes", {}).get("userIds", []),
+                unlikes_count=reactions.get("unlikes", {}).get("count", 0),
+                unlikes_userIds=reactions.get("unlikes", {}).get("userIds", []),
+
+                # Recommendations
+                recommendations_count=recommendations.get("count", 0),
+                recommendations_userIds=recommendations.get("userIds", []),
+
+                visibility=ad.get("visibility", ""),
+                expiryDate=ad.get("expiryDate"),
+                createdAt=ad.get("createdAt"),
+                updatedAt=ad.get("updatedAt")
+            ))
+
+        return results
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve pending ads: {str(e)}")
@@ -475,7 +622,7 @@ async def get_my_ads(current_user: dict = Depends(get_current_user)):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    ads = await ads_collection.find({"userId": userId}).to_list(100)
+    ads = await ads_collection.find({"userId": userId}).to_list(length=None)
 
     result = []
     for ad in ads:
@@ -488,7 +635,7 @@ async def get_my_ads(current_user: dict = Depends(get_current_user)):
 
 @ads_router.get(
     "/rejected",
-    response_model=AdListResponse,
+    response_model=List[AdListingPreview],
     summary="Get all rejected ads",
     description="Returns a list of rejected ads including shop ID, name, city, and image.",
     responses={
@@ -500,17 +647,92 @@ async def get_my_ads(current_user: dict = Depends(get_current_user)):
 )
 async def get_rejected_ads():
     try:
-        ads = await ads_collection.find({"approval.status": "rejected"}).to_list(100)
-        result = [
-            ApprovedAdPreview(
-                shopId=str(ad["_id"]),
-                shopName=ad.get("shopName", "Unknown"),
-                city=ad.get("location", {}).get("city", "Unknown"),
-                image=ad.get("images", [None])[0]
-            )
-            for ad in ads
-        ]
-        return {"message": "Rejected ads fetched successfully", "ads": result}
+        ads = await ads_collection.find({"approval.status": "rejected"}).to_list(length=None)
+        results = []
+        for ad in ads:
+            contact = ad.get("contact", {})
+            location = ad.get("location", {})
+            business = ad.get("business", {})
+            schedule = ad.get("schedule", {})
+            adSettings = ad.get("adSettings", {})
+            approval = ad.get("approval", {})
+            reactions = ad.get("reactions", {})
+            recommendations = ad.get("recommendations", {})
+
+            ad_lat = location.get("lat")
+            ad_lng = location.get("lon")
+
+            results.append(AdListingPreview(
+                ad_id=str(ad["_id"]),
+                title=ad.get("shopName", "Untitled Ad"),
+                image_url=ad.get("images", [None])[0],
+                priority_score=0,
+                shopName=ad.get("shopName", ""),
+
+                # Contact
+                contact_address=contact.get("address", ""),
+                contact_phone=contact.get("phone", ""),
+                contact_whatsapp=contact.get("whatsapp"),
+                contact_email=contact.get("email"),
+                contact_website=contact.get("website"),
+
+                # Location
+                location_googleMapLocation=location.get("googleMapLocation"),
+                location_city=location.get("city", ""),
+                location_district=location.get("district", ""),
+                location_province=location.get("province"),
+                location_country=location.get("country", "Sri Lanka"),
+                location_state=location.get("state"),
+
+                # Business
+                business_category=business.get("category", ""),
+                business_specialty=business.get("specialty"),
+                business_tags=business.get("tags", []),
+                business_halalAvailable=business.get("halalAvailable", False),
+                business_description=business.get("description"),
+                business_menuOptions=business.get("menuOptions", []),
+
+                # Schedule
+                schedule_mon=schedule.get("mon", []),
+                schedule_tue=schedule.get("tue", []),
+                schedule_wed=schedule.get("wed", []),
+                schedule_thu=schedule.get("thu", []),
+                schedule_fri=schedule.get("fri", []),
+                schedule_sat=schedule.get("sat", []),
+                schedule_sun=schedule.get("sun", []),
+
+                # AdSettings
+                isTopAd=adSettings.get("isTopAd", False),
+                isCarousalAd=adSettings.get("isCarousalAd", False),
+                hasHalal=adSettings.get("hasHalal", False),
+
+                # Media
+                images=ad.get("images", []),
+                videoUrl=ad.get("videoUrl"),
+
+                # Approval
+                approval_status=approval.get("status", ""),
+                approval_adminId=approval.get("adminId"),
+                approval_adminComment=approval.get("adminComment"),
+                approval_approvedAt=approval.get("approvedAt"),
+
+                # Reactions
+                likes_count=reactions.get("likes", {}).get("count", 0),
+                likes_userIds=reactions.get("likes", {}).get("userIds", []),
+                unlikes_count=reactions.get("unlikes", {}).get("count", 0),
+                unlikes_userIds=reactions.get("unlikes", {}).get("userIds", []),
+
+                # Recommendations
+                recommendations_count=recommendations.get("count", 0),
+                recommendations_userIds=recommendations.get("userIds", []),
+
+                visibility=ad.get("visibility", ""),
+                expiryDate=ad.get("expiryDate"),
+                createdAt=ad.get("createdAt"),
+                updatedAt=ad.get("updatedAt")
+            ))
+
+        return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve rejected ads: {str(e)}")
 
@@ -669,7 +891,7 @@ async def delete_ad(ad_id: str,  current_user: dict = Depends(get_current_user))
     "/{ad_id}/approve",
     response_model=AdApprovalResponse,
     responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
-status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED
 )
 async def approve_ad_by_admin(
     ad_id: str,
@@ -696,9 +918,23 @@ async def approve_ad_by_admin(
         "approval.adminId": admin_id,
         "approval.adminComment": comment,
         "approval.approvedAt": datetime.utcnow(),
-        "visibility": "visible",
+        "visibility": "visible" if status == "approved" else "hidden",
         "updatedAt": datetime.utcnow()
     }
+
+    # Perform update
+    result = await ads_collection.update_one({"_id": obj_id}, {"$set": update_data})
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ad not found")
+
+    return AdApprovalResponse(
+        ad_id=ad_id,
+        status=status,
+        comment=comment,
+        approved_by=admin_id
+    )
+
 @ads_router.get("/{ad_id}", responses={400: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},status_code=status.HTTP_200_OK)
 async def get_ad_details(ad_id: str):
     try:
