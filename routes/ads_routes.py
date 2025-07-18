@@ -257,6 +257,8 @@ async def create_ad(
             "updatedAt": now,
             "expiryDate": expiry
         })
+        business = ad_data.get("business", {})
+        business_category = business.get("category", "")
         # Fetch all Stripe prices using your method
         pricing_doc = await get_all_prices()
         all_prices = pricing_doc.get("prices", [])
@@ -279,7 +281,10 @@ async def create_ad(
                 matched_price_ids.append(item["price_id"])
                 total_amount += item.get("amount", 0)
 
-            elif "base_price" in product_name:
+            elif "base_price" in product_name and  business_category is not 'Sri Lankan Worldwide Restaurant' :
+                    matched_price_ids.append(item["price_id"])
+                    total_amount += item.get("amount", 0)
+            elif "international_add_price" in product_name and  business_category is 'Sri Lankan Worldwide Restaurant' :
                     matched_price_ids.append(item["price_id"])
                     total_amount += item.get("amount", 0)
 

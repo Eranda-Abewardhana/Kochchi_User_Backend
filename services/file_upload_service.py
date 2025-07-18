@@ -30,7 +30,7 @@ def add_watermark(image: Image.Image, text: str = "kochchibazaar") -> io.BytesIO
     base = image.convert("RGBA")
     W, H = base.size
     try:
-        font = ImageFont.truetype("arialbd.ttf", int(W * 0.11))
+        font = ImageFont.truetype("arialbd.ttf", int(W * 0.20))
     except:
         font = ImageFont.load_default()
 
