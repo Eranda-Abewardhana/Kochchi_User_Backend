@@ -284,7 +284,7 @@ async def create_ad(
             elif "base_price" in product_name and  business_category is not 'Sri Lankan Worldwide Restaurant' :
                     matched_price_ids.append(item["price_id"])
                     total_amount += item.get("amount", 0)
-            elif "international_add_price" in product_name and  business_category is 'Sri Lankan Worldwide Restaurant' :
+            elif "international_add_price" in product_name and business_category == 'Sri Lankan Worldwide Restaurant':
                     matched_price_ids.append(item["price_id"])
                     total_amount += item.get("amount", 0)
 
