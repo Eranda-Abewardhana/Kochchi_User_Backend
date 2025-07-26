@@ -1089,8 +1089,17 @@ async def update_ad_details(
     # Only allow editable fields
     editable_fields = {"business", "contact", "adSettings", "schedule", "location", "title", "description"}
 
-    # Extract non-null fields from request
-    updates = {k: v for k, v in update_data.dict(exclude_unset=True).items() if k in editable_fields}
+    # Get incoming fields
+    incoming_updates = update_data.dict(exclude_unset=True)
+    updates = {}
+
+    for key, value in incoming_updates.items():
+        if key in editable_fields:
+            if isinstance(value, dict) and isinstance(ad.get(key), dict):
+                # Merge nested dict
+                updates[key] = {**ad.get(key, {}), **value}
+            else:
+                updates[key] = value
 
     if not updates:
         raise HTTPException(status_code=400, detail="No valid fields provided for update")
