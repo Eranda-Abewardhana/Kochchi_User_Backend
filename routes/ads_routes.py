@@ -1077,22 +1077,27 @@ async def update_ad_details(
     update_data: AdUpdateSchema = Body(...),
     current_user: dict = Depends(get_current_user)
 ):
+    # Validate ad existence
     ad = await ads_collection.find_one({"_id": ObjectId(ad_id)})
-
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")
 
+    # Check user authorization
     if ad.get("userId") != current_user["user_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to update this ad")
 
+    # Only allow editable fields
     editable_fields = {"business", "contact", "adSettings", "schedule", "location", "title", "description"}
-    updates = {k: v for k, v in update_data.items() if k in editable_fields}
+
+    # Extract non-null fields from request
+    updates = {k: v for k, v in update_data.dict(exclude_unset=True).items() if k in editable_fields}
 
     if not updates:
         raise HTTPException(status_code=400, detail="No valid fields provided for update")
 
     updates["updatedAt"] = datetime.utcnow()
 
+    # Apply update
     result = await ads_collection.update_one(
         {"_id": ObjectId(ad_id)},
         {"$set": updates}
