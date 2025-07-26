@@ -6,7 +6,7 @@ import cloudinary.uploader
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, Query, Body
-from typing import List, Optional, Annotated
+from typing import List, Optional, Annotated, Dict, Any
 from bson import ObjectId
 from datetime import datetime
 import re
@@ -18,7 +18,7 @@ from data_models.ads_model import (
     AdDeleteResponse,
     AdApprovalResponse,
     ErrorResponse, TopAdPreview, AdListingPreview, AdOut, PaginatedAdResponse, AdBase, AdCreateSchema,
-    ApprovedAdPreview, ApprovedAdListResponse, AdListResponse, SimplifiedAdPreview
+    ApprovedAdPreview, ApprovedAdListResponse, AdListResponse, SimplifiedAdPreview, AdUpdateResponse, AdUpdateSchema
 )
 from fastapi import Query, Depends, HTTPException
 from typing import List
@@ -1059,6 +1059,49 @@ async def unlike_ad(ad_id: str,  current_user: dict = Depends(get_current_user))
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update unlikes: {str(e)}")
+
+@ads_router.patch(
+    "/{ad_id}/update",
+    response_model=AdUpdateResponse,
+    summary="Update editable fields of an ad",
+    description="Allows updating ad details such as business info, ad settings, or contact fields. Immutable fields like userId, approval, and creation dates are not modified.",
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse}
+    },
+    status_code=status.HTTP_200_OK
+)
+async def update_ad_details(
+    ad_id: str,
+    update_data: AdUpdateSchema = Body(...),
+    current_user: dict = Depends(get_current_user)
+):
+    ad = await ads_collection.find_one({"_id": ObjectId(ad_id)})
+
+    if not ad:
+        raise HTTPException(status_code=404, detail="Ad not found")
+
+    if ad.get("userId") != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to update this ad")
+
+    editable_fields = {"business", "contact", "adSettings", "schedule", "location", "title", "description"}
+    updates = {k: v for k, v in update_data.items() if k in editable_fields}
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid fields provided for update")
+
+    updates["updatedAt"] = datetime.utcnow()
+
+    result = await ads_collection.update_one(
+        {"_id": ObjectId(ad_id)},
+        {"$set": updates}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(status_code=500, detail="Update failed")
+
+    return {"message": "Ad updated successfully", "adId": ad_id}
 
 @ads_router.post(
     "/{ad_id}/recommend",

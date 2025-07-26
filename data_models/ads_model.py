@@ -258,8 +258,6 @@ class AdCreateSchema(BaseModel):
                 "videoUrl": "https://example.com/video.mp4"
             }
         }
-from pydantic import BaseModel
-from typing import List, Optional
 
 class ApprovedAdPreview(BaseModel):
     shopId: str
@@ -284,3 +282,25 @@ class SimplifiedAdPreview(BaseModel):
     contact_name: Optional[str]
     contact_phone: Optional[str]
     priority_score: int
+class PartialAd(BaseModel):
+    title: Optional[str]
+    description: Optional[str]
+    business: Optional[dict]
+    contact: Optional[dict]
+    adSettings: Optional[dict]
+    schedule: Optional[dict]
+    location: Optional[dict]
+    updatedAt: Optional[datetime]
+
+class AdUpdateResponse(BaseModel):
+    message: str = Field(..., example="Ad updated successfully")
+    adId: str
+    updatedFields: PartialAd
+class AdUpdateSchema(BaseModel):
+    title: Optional[str]
+    description: Optional[str]
+    business: Optional[Business]
+    contact: Optional[Contact]
+    adSettings: Optional[AdSettings]
+    schedule: Optional[Schedule]
+    location: Optional[Location]
