@@ -386,33 +386,6 @@ async def get_carousal_ads():
 
     return result
 
-
-    # Perform the update
-    result = await ads_collection.update_one({"_id": obj_id}, {"$set": update_data})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="No ad found to approve/reject")
-
-    # Log approval in separate collection
-    try:
-        await approvals_collection.insert_one({
-            "admin_id": admin_id,
-            "ad_id": ad_id,
-            "approved_at": datetime.utcnow(),
-            "status": status,
-            "comment": comment
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Approval logging failed: {str(e)}")
-
-    return {
-        "message": f"Ad {status} successfully",
-        "adId": ad_id,
-        "status": status,
-        "approvedBy": admin_id
-    }
-
-
-
 @ads_router.get(
     "/approve",
     response_model=List[AdListingPreview],
