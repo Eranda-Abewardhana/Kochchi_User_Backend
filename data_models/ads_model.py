@@ -23,7 +23,7 @@ class Location(BaseModel):
 
 class Business(BaseModel):
     category: str  # One of the 8 core categories
-    specialty: Optional[str]
+    specialty: Optional[List[str]]  # Now supports multiple specialties
     tags: List[str]
     halalAvailable: bool
     description: Optional[str]
