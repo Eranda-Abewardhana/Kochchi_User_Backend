@@ -5,8 +5,8 @@ from datetime import datetime
 
 
 class Contact(BaseModel):
-    address: str
-    phone: str
+    address: Optional[str]
+    phone: Optional[str]
     whatsapp: Optional[str]
     email: EmailStr
     website: Optional[HttpUrl]
