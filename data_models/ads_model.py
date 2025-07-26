@@ -5,11 +5,11 @@ from datetime import datetime
 
 
 class Contact(BaseModel):
-    address: Optional[str]
-    phone: Optional[str]
-    whatsapp: Optional[str]
-    email: EmailStr
-    website: Optional[HttpUrl]
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    whatsapp: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
 
 
 class Location(BaseModel):
@@ -296,11 +296,13 @@ class AdUpdateResponse(BaseModel):
     message: str = Field(..., example="Ad updated successfully")
     adId: str
     updatedFields: PartialAd
+
 class AdUpdateSchema(BaseModel):
-    title: Optional[str]
-    description: Optional[str]
-    business: Optional[Business]
-    contact: Optional[Contact]
-    adSettings: Optional[AdSettings]
-    schedule: Optional[Schedule]
-    location: Optional[Location]
+    title: Optional[str] = None
+    description: Optional[str] = None
+    business: Optional[Business] = None
+    contact: Optional[Contact] = None
+    adSettings: Optional[AdSettings] = None
+    schedule: Optional[Schedule] = None
+    location: Optional[Location] = None
+
