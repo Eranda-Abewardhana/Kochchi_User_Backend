@@ -1106,7 +1106,12 @@ async def update_ad_details(
     if result.modified_count == 0:
         raise HTTPException(status_code=500, detail="Update failed")
 
-    return {"message": "Ad updated successfully", "adId": ad_id}
+    return {
+        "message": "Ad updated successfully",
+        "adId": ad_id,
+        "updatedFields": updates
+    }
+
 
 @ads_router.post(
     "/{ad_id}/recommend",

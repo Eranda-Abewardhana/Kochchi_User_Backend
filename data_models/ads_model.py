@@ -295,7 +295,7 @@ class PartialAd(BaseModel):
 class AdUpdateResponse(BaseModel):
     message: str = Field(..., example="Ad updated successfully")
     adId: str
-    updatedFields: PartialAd
+    updatedFields: dict
 
 class AdUpdateSchema(BaseModel):
     title: Optional[str] = None
