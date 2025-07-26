@@ -359,6 +359,8 @@ async def create_ad(
                 print(f"Cleanup failed for Cloudinary image: {ce}")
         raise HTTPException(status_code=500, detail=f"Creation failed: {str(e)}")
 
+from bson import ObjectId
+
 @ads_router.get("/carousal-ads")
 async def get_carousal_ads():
     cursor = ads_collection.find({
@@ -373,18 +375,18 @@ async def get_carousal_ads():
 
     random.shuffle(ads)
     selected = ads[:8]
-    print(selected)
     result = []
 
     for ad in selected:
         try:
+            ad["_id"] = str(ad["_id"])  # Convert ObjectId to string
             result.append(ad)
-        except ValidationError as e:
-            print(f"Validation error for ad {ad.get('_id')}: {e}")
-            print("Offending ad:", ad)
-            continue  # Skip ads that fail validation
+        except Exception as e:
+            print(f"Error processing ad {ad.get('_id')}: {e}")
+            continue
 
     return result
+
 
 @ads_router.get(
     "/approve",
