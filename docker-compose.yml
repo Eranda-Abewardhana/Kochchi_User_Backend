@@ -21,6 +21,8 @@ services:
     restart: always
     networks:
       - internal
+    env_file:
+      - ./kochchi-frontend/.env.production
     depends_on:
       - backend
 
