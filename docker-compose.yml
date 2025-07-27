@@ -18,7 +18,7 @@ services:
       context: ./kochchi-frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: https://api.kochchibazaar.lk
+        NEXT_PUBLIC_API_BASE_URL: https://api.kochchibazaar.lk/api/
     container_name: frontend
     restart: always
     networks:
