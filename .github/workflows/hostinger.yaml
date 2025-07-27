@@ -52,12 +52,12 @@ jobs:
 
             echo "🔄 Cloning or updating repo..."
             if [ ! -d "/root/Kochchi_Bazar" ]; then
-            git clone https://github.com/Eranda-Abewardhana/Kochchi_Bazar.git /root/Kochchi_Bazar
+            git clone https://github.com/Eranda-Abewardhana/Kochchi_Bazar.git /root/Kochchi_User_Backend
             else
             cd /root/Kochchi_Bazar
             git fetch origin
-            git checkout master
-            git pull origin master
+            git checkout main
+            git pull origin main  
             fi
             
             cd /root/Kochchi_Bazar
