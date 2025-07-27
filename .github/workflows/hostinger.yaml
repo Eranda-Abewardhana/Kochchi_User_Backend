@@ -52,16 +52,16 @@ jobs:
 
             echo "🔄 Cloning or updating repo..."
             if [ ! -d "/root/Kochchi_Bazar" ]; then
-              git clone https://github.com/Eranda-Abewardhana/Kochchi_Bazar.git /root/Kochchi_Bazar
+            git clone https://github.com/Eranda-Abewardhana/Kochchi_Bazar.git /root/Kochchi_Bazar
             else
-              cd /root/Kochchi_Bazar
-              git fetch origin
-              git checkout master
-              git pull origin master
-            fi
-
             cd /root/Kochchi_Bazar
-
+            git fetch origin
+            git checkout main
+            git pull origin main
+            fi
+            
+            cd /root/Kochchi_Bazar
+  
             echo "📝 Creating .env file..."
             echo "IMAGE_TAG=${IMAGE_TAG}" > Kochchi_User_Backend/.env
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> Kochchi_User_Backend/.env
