@@ -56,8 +56,8 @@ jobs:
             else
             cd /root/Kochchi_Bazar
             git fetch origin
-            git checkout main
-            git pull origin main
+            git checkout master
+            git pull origin master
             fi
             
             cd /root/Kochchi_Bazar
