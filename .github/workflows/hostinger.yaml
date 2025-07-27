@@ -90,12 +90,6 @@ jobs:
             echo "CANCEL_URL=${{ secrets.CANCEL_URL }}" >> Kochchi_User_Backend/.env
             echo "SUCCESS_URL=${{ secrets.SUCCESS_URL }}" >> Kochchi_User_Backend/.env
             
-            echo "📝 Creating frontend env file..."
-            cat <<EOF > kochchi-frontend/.env.production
-            NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
-            EOF
-  
-  
             echo "🧹 Cleaning up..."
             docker-compose down || true
             docker image rm eranda24/kochchi_app_backend:$IMAGE_TAG || true
