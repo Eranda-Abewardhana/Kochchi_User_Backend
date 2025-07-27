@@ -17,12 +17,12 @@ services:
     build:
       context: ./kochchi-frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://api.kochchibazaar.lk
     container_name: frontend
     restart: always
     networks:
       - internal
-    volumes:
-      - ./kochchi-frontend/.env.production:/app/.env.production
     depends_on:
       - backend
 
