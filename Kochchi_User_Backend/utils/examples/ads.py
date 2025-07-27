@@ -20,7 +20,7 @@ example_json = {
     },
     "business": {
         "category": "Restaurant",
-        "specialty": "Indian",
+        "specialty": ["China","Indian"],
         "tags": ["Spicy", "Vegetarian"],
         "halalAvailable": True,
         "description": "Authentic Sri Lankan and Indian dishes",
