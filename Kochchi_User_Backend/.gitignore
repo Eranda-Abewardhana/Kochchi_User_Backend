@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv/
+.env
+.env
+
+# VSCode / IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# MongoDB dumps
+dump/
+
+data_sources/
+# Node.js (if using frontend in same repo)
+node_modules/
+dist/
+build/
