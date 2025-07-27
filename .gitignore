@@ -1,0 +1,39 @@
+# Python (Backend - Kochchi_User_Backend)
+Kochchi_User_Backend/__pycache__/
+Kochchi_User_Backend/*.pyc
+Kochchi_User_Backend/*.pyo
+Kochchi_User_Backend/*.pyd
+Kochchi_User_Backend/.env
+Kochchi_User_Backend/env/
+Kochchi_User_Backend/venv/
+Kochchi_User_Backend/.mypy_cache/
+Kochchi_User_Backend/.pytest_cache/
+
+# Node.js (Frontend - kochchi-frontend)
+kochchi-frontend/node_modules/
+kochchi-frontend/.next/
+kochchi-frontend/.env
+kochchi-frontend/.env.local
+kochchi-frontend/.env.production
+kochchi-frontend/.env.development
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS/Editor/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+**/data_sources/
+**/certbot-etc/
+**/certbot-webroot/
+docker-compose.override.yml
