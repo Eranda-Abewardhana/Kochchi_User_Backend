@@ -19,12 +19,14 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'ads'
   const { logout } = useAuth();
   const [showLogoutToast, setShowLogoutToast] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
       setLoading(true);
       setError('');
       try {
+        console.log('API Base URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
         const token = localStorage.getItem('access_token') || localStorage.getItem('user_token') || localStorage.getItem('admin_token');
         if (!token) {
           setError('Not logged in.');
@@ -101,26 +103,37 @@ export default function ProfilePage() {
         setLoading(false);
         return;
       }
+      
+      console.log('API URL:', `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/me`);
+      console.log('Token:', token ? 'Present' : 'Missing');
+      console.log('Edit values:', editValues);
+      
       const formData = new FormData();
       formData.append('first_name', editValues.firstName);
       formData.append('last_name', editValues.lastName);
       formData.append('phone_number', editValues.phone);
       if (selectedPhotoFile) {
         formData.append('profile_pic', selectedPhotoFile);
+        console.log('Photo file included');
       }
+      
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/me`, {
         method: 'PUT',
         headers: {
-          'accept': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: formData,
       });
+      console.log('Response status:', res.status);
+      console.log('Response headers:', Object.fromEntries(res.headers.entries()));
+      
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Failed to update profile');
+        console.error('API Error:', errData);
+        throw new Error(errData.detail || errData.message || 'Failed to update profile');
       }
       const data = await res.json();
+      console.log('API Response:', data);
       setUserData(prev => ({
         ...prev,
         firstName: data.first_name || editValues.firstName,
@@ -131,7 +144,10 @@ export default function ProfilePage() {
       }));
       setSelectedPhotoFile(null);
       setEditMode(false);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
     } catch (err) {
+      console.error('Profile update error:', err);
       setError(err.message || 'Error updating profile');
     } finally {
       setLoading(false);
@@ -256,7 +272,7 @@ export default function ProfilePage() {
         >
           <div className="relative flex-shrink-0">
             <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 rounded-full overflow-hidden border-2 border-blue-200 shadow-md">
-              <img src={userData.profile_pic} alt={userData.firstName} className="w-full h-full object-cover" />
+              <img src={userData.profile_pic} alt={userData.firstName} className="w-full h-full object-cover" style={{ transform: 'rotate(180deg)' }} />
             </div>
             <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handlePhotoChange} />
             <button
@@ -269,48 +285,131 @@ export default function ProfilePage() {
             </button>
           </div>
           <div className="flex-1 w-full">
-            <div className="flex flex-col md:flex-row md:items-center md:gap-6 w-full">
-              <div className="flex-1 space-y-1">
-                <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
-                  {userData.firstName} {userData.lastName}
-                </h2>
-                <p className="text-gray-500 text-sm lg:text-base">Member since {userData.joinDate}</p>
-              </div>
-              <button onClick={handleEdit} className="mt-2 md:mt-0 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg flex items-center justify-center gap-2 text-base transition">
-                <FiEdit className="w-4 h-4" />
-                Edit Profile
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-              <div className="flex items-center bg-white rounded-xl px-4 py-2 text-base border border-gray-200">
-                <FiUser className="w-5 h-5 text-gray-500 mr-2" />
-                <div className="flex-1">
-                  <span className="text-gray-500 text-xs">First Name</span>
-                  <div className="text-gray-800 font-semibold">{userData.firstName}</div>
+            {!editMode ? (
+              // Read-only view
+              <>
+                <div className="flex flex-col md:flex-row md:items-center md:gap-6 w-full">
+                  <div className="flex-1 space-y-1">
+                    <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
+                      {userData.firstName} {userData.lastName}
+                    </h2>
+                    <p className="text-gray-500 text-sm lg:text-base">Member since {userData.joinDate}</p>
+                  </div>
+                  <button onClick={handleEdit} className="mt-2 md:mt-0 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg flex items-center justify-center gap-2 text-base transition">
+                    <FiEdit className="w-4 h-4" />
+                    Edit Profile
+                  </button>
                 </div>
-              </div>
-              <div className="flex items-center bg-white rounded-xl px-4 py-2 text-base border border-gray-200">
-                <FiUser className="w-5 h-5 text-gray-500 mr-2" />
-                <div className="flex-1">
-                  <span className="text-gray-500 text-xs">Last Name</span>
-                  <div className="text-gray-800 font-semibold">{userData.lastName}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                  <div className="flex items-center bg-white rounded-xl px-4 py-2 text-base border border-gray-200">
+                    <FiUser className="w-5 h-5 text-gray-500 mr-2" />
+                    <div className="flex-1">
+                      <span className="text-gray-500 text-xs">First Name</span>
+                      <div className="text-gray-800 font-semibold">{userData.firstName}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center bg-white rounded-xl px-4 py-2 text-base border border-gray-200">
+                    <FiUser className="w-5 h-5 text-gray-500 mr-2" />
+                    <div className="flex-1">
+                      <span className="text-gray-500 text-xs">Last Name</span>
+                      <div className="text-gray-800 font-semibold">{userData.lastName}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center bg-white rounded-xl px-4 py-2 text-base border border-gray-200">
+                    <FiMail className="w-5 h-5 text-gray-500 mr-2" />
+                    <div className="flex-1">
+                      <span className="text-gray-500 text-xs">Email</span>
+                      <div className="text-gray-800 font-semibold">{userData.email}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center bg-white rounded-xl px-4 py-2 text-base border border-gray-200">
+                    <FiPhone className="w-5 h-5 text-gray-500 mr-2" />
+                    <div className="flex-1">
+                      <span className="text-gray-500 text-xs">Phone Number</span>
+                      <div className="text-gray-800 font-semibold">{userData.phone}</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center bg-white rounded-xl px-4 py-2 text-base border border-gray-200">
-                <FiMail className="w-5 h-5 text-gray-500 mr-2" />
-                <div className="flex-1">
-                  <span className="text-gray-500 text-xs">Email</span>
-                  <div className="text-gray-800 font-semibold">{userData.email}</div>
+              </>
+            ) : (
+              // Edit form
+              <>
+                <div className="flex flex-col md:flex-row md:items-center md:gap-6 w-full">
+                  <div className="flex-1 space-y-1">
+                    <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
+                      Edit Profile
+                    </h2>
+                    <p className="text-gray-500 text-sm lg:text-base">Update your information</p>
+                  </div>
+                  <div className="flex gap-2 mt-2 md:mt-0">
+                    <button 
+                      onClick={handleSave} 
+                      disabled={loading}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-2 px-5 rounded-lg flex items-center justify-center gap-2 text-base transition"
+                    >
+                      {loading ? 'Saving...' : 'Save'}
+                    </button>
+                    <button 
+                      onClick={handleCancel}
+                      disabled={loading}
+                      className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-semibold py-2 px-5 rounded-lg flex items-center justify-center gap-2 text-base transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center bg-white rounded-xl px-4 py-2 text-base border border-gray-200">
-                <FiPhone className="w-5 h-5 text-gray-500 mr-2" />
-                <div className="flex-1">
-                  <span className="text-gray-500 text-xs">Phone Number</span>
-                  <div className="text-gray-800 font-semibold">{userData.phone}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <label className="text-gray-500 text-xs font-medium">First Name</label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={editValues.firstName}
+                      onChange={handleChange}
+                      className="w-full bg-white rounded-xl px-4 py-3 text-base border border-gray-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Enter first name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-gray-500 text-xs font-medium">Last Name</label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={editValues.lastName}
+                      onChange={handleChange}
+                      className="w-full bg-white rounded-xl px-4 py-3 text-base border border-gray-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Enter last name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-gray-500 text-xs font-medium flex items-center gap-1">Email
+                      <svg xmlns='http://www.w3.org/2000/svg' className='inline w-3 h-3 text-gray-400 ml-1' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 11c0-1.104.896-2 2-2s2 .896 2 2-.896 2-2 2-2-.896-2-2zm0 0V7m0 4v4m0 0h4m-4 0H8' /></svg>
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={editValues.email}
+                      onChange={handleChange}
+                      className="w-full bg-gray-100 rounded-xl px-4 py-3 text-base border border-gray-200 text-black cursor-not-allowed"
+                      placeholder="Enter email"
+                      disabled
+                    />
+                    <p className="text-xs text-gray-400 flex items-center gap-1"><svg xmlns='http://www.w3.org/2000/svg' className='inline w-3 h-3' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 11c0-1.104.896-2 2-2s2 .896 2 2-.896 2-2 2-2-.896-2-2zm0 0V7m0 4v4m0 0h4m-4 0H8' /></svg> Email cannot be changed</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-gray-500 text-xs font-medium">Phone Number</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={editValues.phone}
+                      onChange={handleChange}
+                      className="w-full bg-white rounded-xl px-4 py-3 text-base border border-gray-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="Enter phone number"
+                    />
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.98 }}
@@ -352,6 +451,7 @@ export default function ProfilePage() {
         </motion.div>
       )}
       {showLogoutToast && <Toast message="You are logged out" />}
+      {showSuccessToast && <Toast message="Profile updated successfully!" />}
     </div>
   );
 }

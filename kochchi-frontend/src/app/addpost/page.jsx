@@ -611,7 +611,7 @@ function Page() {
     },
     business: {
       category: formData.category,
-      specialty: formData.specialties[0] || '',
+      specialty: formData.specialties.length > 0 ? [formData.specialties[0]] : [],
       tags: formData.specialties,
       halalAvailable: formData.halalAvailability === 'Yes',
       description: formData.description,
