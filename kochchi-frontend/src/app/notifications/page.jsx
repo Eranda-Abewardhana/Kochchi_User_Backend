@@ -68,7 +68,9 @@ function NotificationPage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-blue-700 transition-colors">{noti.title}</h3>
-                    <p className="text-gray-700 mb-2">{noti.description}</p>
+                    <div className="text-gray-700 mb-2">
+                      <p className="whitespace-pre-wrap">{noti.description}</p>
+                    </div>
                     <div className="text-xs text-gray-400">{new Date(noti.createdAt).toLocaleString()}</div>
                   </div>
                 </motion.div>

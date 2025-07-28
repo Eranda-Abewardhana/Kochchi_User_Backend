@@ -99,7 +99,7 @@ function ContactPage() {
                 </a>
                 <Image src="https://upload.wikimedia.org/wikipedia/en/a/ae/Flag_of_the_United_Kingdom.svg" alt="UK Flag" width={30} height={16} className="inline ml-1 rounded-sm border" />
                 <span className="text-xs text-gray-500 italic ml-2">(WhatsApp msg only)</span>
-              </div>)
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <FaMapMarkerAlt className="text-red-500 text-xl" />

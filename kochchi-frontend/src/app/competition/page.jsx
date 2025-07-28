@@ -49,9 +49,153 @@ function CompetitionPage() {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${poppins.className}`}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <span className="ml-4 text-blue-700 text-lg font-medium">Loading competitions...</span>
+      <div className={`min-h-screen bg-gradient-to-b from-white to-gray-50 py-20 ${poppins.className}`}>
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10 text-gray-900">Competitions</h1>
+          
+          {/* Loading Animation */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <motion.div
+                key={item}
+                className="relative flex flex-col justify-end w-full h-[340px] rounded-2xl overflow-hidden shadow-xl border border-white/20 bg-gradient-to-br from-gray-100 to-gray-200"
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: item * 0.1 }}
+              >
+                {/* Animated background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-300">
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                    animate={{
+                      x: ['-100%', '100%'],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                      delay: item * 0.2,
+                    }}
+                  />
+                </div>
+                
+                {/* Content skeleton */}
+                <div className="relative z-10 p-6 flex flex-col h-full justify-end">
+                  {/* Status badge skeleton */}
+                  <div className="flex items-center mb-2">
+                    <motion.div
+                      className="h-8 w-24 bg-gray-300 rounded-full"
+                      animate={{
+                        opacity: [0.5, 1, 0.5],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Title skeleton */}
+                  <motion.div
+                    className="h-8 bg-gray-300 rounded mb-2"
+                    animate={{
+                      opacity: [0.5, 1, 0.5],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                      delay: 0.2,
+                    }}
+                  />
+                  
+                  {/* Content skeleton */}
+                  <div className="space-y-2">
+                    <motion.div
+                      className="h-4 bg-gray-300 rounded"
+                      animate={{
+                        opacity: [0.5, 1, 0.5],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                        delay: 0.4,
+                      }}
+                    />
+                    <motion.div
+                      className="h-4 bg-gray-300 rounded w-3/4"
+                      animate={{
+                        opacity: [0.5, 1, 0.5],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                        delay: 0.6,
+                      }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          
+          {/* Loading text */}
+          <div className="text-center mt-8">
+            <motion.div
+              className="inline-flex items-center space-x-2 text-gray-600"
+              animate={{
+                opacity: [0.5, 1, 0.5],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            >
+              <div className="flex space-x-1">
+                <motion.div
+                  className="w-2 h-2 bg-blue-600 rounded-full"
+                  animate={{
+                    scale: [1, 1.5, 1],
+                  }}
+                  transition={{
+                    duration: 0.6,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                />
+                <motion.div
+                  className="w-2 h-2 bg-blue-600 rounded-full"
+                  animate={{
+                    scale: [1, 1.5, 1],
+                  }}
+                  transition={{
+                    duration: 0.6,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: 0.2,
+                  }}
+                />
+                <motion.div
+                  className="w-2 h-2 bg-blue-600 rounded-full"
+                  animate={{
+                    scale: [1, 1.5, 1],
+                  }}
+                  transition={{
+                    duration: 0.6,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: 0.4,
+                  }}
+                />
+              </div>
+              <span className="text-lg font-medium">Loading competitions...</span>
+            </motion.div>
+          </div>
+        </div>
       </div>
     );
   }
