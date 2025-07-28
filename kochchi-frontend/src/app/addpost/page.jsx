@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Poppins } from 'next/font/google';
 import { motion } from 'framer-motion';
-import { FaStar, FaCrown, FaEye, FaImages, FaArrowUp, FaCheckCircle } from 'react-icons/fa';
+import { FaStar, FaCrown, FaEye, FaImages, FaArrowUp, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import Toast from '../(components)/Toast';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -204,6 +205,8 @@ function Page() {
   const [isLoggedIn, setIsLoggedIn] = useState(true); // default true for SSR safety
 
   const [missingFields, setMissingFields] = useState([]);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     // Check login status on mount
@@ -731,7 +734,7 @@ function Page() {
       if (!formData.country) missing.push('Country');
       if (!formData.state) missing.push('State/Province/District');
       if (!formData.city) missing.push('City');
-      if (!formData.description) missing.push('Description');
+      // Description is now optional
       if (!formData.images || formData.images.length === 0) missing.push('Images');
     } else {
       if (!formData.restaurantName) missing.push('Restaurant Name');
@@ -740,7 +743,7 @@ function Page() {
       if (!formData.district) missing.push('District');
       if (!formData.city) missing.push('City');
       if (!formData.halalAvailability) missing.push('Halal Availability');
-      if (!formData.description) missing.push('Description');
+      // Description is now optional
       if (!formData.images || formData.images.length === 0) missing.push('Images');
       // Opening and closing times for all days
       ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].forEach(day => {
@@ -1544,7 +1547,6 @@ function Page() {
               <motion.div className="space-y-4" variants={itemVariants}>
                 <label className="block text-xs font-medium text-gray-500 mb-1">DESCRIPTION*</label>
                 <textarea
-                  required
                   rows={4}
                   className={`w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800${missingFields.includes('Description') ? ' border-red-500 focus:ring-red-200' : ''}`}
                   value={formData.description}
@@ -1855,6 +1857,8 @@ function Page() {
         </motion.div>
         )}
       </motion.div>
+      {/* Toast Notification */}
+      {showToast && <Toast message={toastMessage} />}
     </div>
   );
 }
