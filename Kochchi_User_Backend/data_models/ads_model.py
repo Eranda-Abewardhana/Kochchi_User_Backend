@@ -1,6 +1,6 @@
 from fastapi import Form
 from pydantic import BaseModel, EmailStr, HttpUrl, Field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 
@@ -137,8 +137,8 @@ class AdListingPreview(BaseModel):
     contact_address: str
     contact_phone: str
     contact_whatsapp: Optional[str]
-    contact_email: EmailStr
-    contact_website: Optional[HttpUrl]
+    contact_email: Optional[str]
+    contact_website: Optional[str]
 
     # Location
     location_googleMapLocation: Optional[str]
@@ -150,7 +150,7 @@ class AdListingPreview(BaseModel):
 
     # Business
     business_category: str
-    business_specialty: Optional[str]
+    business_specialty: Optional[Any]  # (less recommended unless you're very flexible)
     business_tags: List[str]
     business_halalAvailable: bool
     business_description: Optional[str]
