@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaUserCog, FaUsers, FaHourglassHalf, FaCheckCircle, FaBlog, FaTrophy, FaBell, FaAd, FaPlus, FaTrash, FaDownload, FaBold, FaListUl, FaListOl, FaUnderline, FaItalic, FaAlignLeft, FaAlignCenter, FaAlignRight, FaEdit, FaImage, FaSignOutAlt, FaUtensils } from 'react-icons/fa';
 import * as Toolbar from '@radix-ui/react-toolbar';
+import * as XLSX from 'xlsx';
 import BlogManagement from './components/BlogManagement';
 import AdminPriceManagement from './components/AdminPriceManagement';
 import UserManagement from './components/UserManagement';
@@ -273,8 +274,54 @@ function AdminPage() {
     setUsers(users.filter((u) => u.email !== email));
   };
   const handleExportUsers = () => {
-    // Export functionality would go here
-    alert('Export functionality - users.xlsx would be downloaded');
+    if (!users || users.length === 0) {
+      alert('No users data to export');
+      return;
+    }
+
+    try {
+      // Prepare data for Excel export
+      const exportData = users.map(user => ({
+        'Name': user.name || user.first_name + ' ' + (user.last_name || '') || 'N/A',
+        'First Name': user.first_name || 'N/A',
+        'Last Name': user.last_name || 'N/A',
+        'Email': user.email || 'N/A',
+        'Phone': user.phone_number || user.phone || 'N/A',
+        'Username': user.username || 'N/A',
+        'Last Login': user.last_login ? new Date(user.last_login).toLocaleString() : 'N/A',
+        'Created At': user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'
+      }));
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Set column widths
+      const columnWidths = [
+        { wch: 20 }, // Name
+        { wch: 15 }, // First Name
+        { wch: 15 }, // Last Name
+        { wch: 25 }, // Email
+        { wch: 15 }, // Phone
+        { wch: 15 }, // Username
+        { wch: 20 }, // Last Login
+        { wch: 20 }  // Created At
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+
+      // Generate filename with current date
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `users_export_${date}.xlsx`;
+
+      // Export the file
+      XLSX.writeFile(workbook, filename);
+    } catch (error) {
+      console.error('Error exporting users to Excel:', error);
+      alert('Error exporting users data. Please try again.');
+    }
   };
   const handleRemovePendingAd = (id) => {
     setPendingAds(pendingAds.filter((ad) => ad.id !== id));
