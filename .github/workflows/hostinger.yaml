@@ -32,6 +32,13 @@ jobs:
           echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
           docker push eranda24/kochchi_app_frontend:${{ github.ref_name }}
 
+      - name: Verify images were pushed
+        run: |
+          echo "🔍 Verifying images were pushed to Docker Hub..."
+          docker pull eranda24/kochchi_app_backend:${{ github.ref_name }}
+          docker pull eranda24/kochchi_app_frontend:${{ github.ref_name }}
+          echo "✅ Images verified successfully!"
+
 
       - name: Deploy to Hostinger VPS
         uses: appleboy/ssh-action@master
@@ -55,6 +62,8 @@ jobs:
               chmod +x /usr/local/bin/docker-compose
             fi
 
+            echo "🔄 Cloning or updating repo..."
+            
             if [ ! -d "/root/Kochchi_User_Backend" ]; then
             git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
             else
@@ -90,6 +99,9 @@ jobs:
             echo "CANCEL_URL=${{ secrets.CANCEL_URL }}" >> Kochchi_User_Backend/.env
             echo "SUCCESS_URL=${{ secrets.SUCCESS_URL }}" >> Kochchi_User_Backend/.env
             
+            echo "🔐 Logging into Docker Hub..."
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
             echo "🧹 Cleaning up..."
             docker-compose down || true
             docker image rm eranda24/kochchi_app_backend:$IMAGE_TAG || true
@@ -97,8 +109,13 @@ jobs:
             docker system prune -af || true
 
             echo "📦 Pulling latest images..."
+            echo "Pulling backend image: eranda24/kochchi_app_backend:$IMAGE_TAG"
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
+            echo "Pulling frontend image: eranda24/kochchi_app_frontend:$IMAGE_TAG"
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
+
+            echo "🔧 Creating certbot volume if it doesn't exist..."
+            docker volume create certbot-etc || true
 
             echo "🚀 Starting containers..."
             docker-compose up -d backend frontend nginx certbot
