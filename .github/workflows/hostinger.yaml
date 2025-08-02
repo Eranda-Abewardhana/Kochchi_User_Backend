@@ -124,7 +124,7 @@ jobs:
             echo "🕒 Waiting for nginx to be ready..."
             sleep 5
 
-            eecho "🔧 Prepare volumes for Certbot..."
+            echo "🔧 Prepare volumes for Certbot..."
             docker volume create certbot-etc || true
             docker volume create certbot-webroot || true
             
