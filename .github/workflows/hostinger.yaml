@@ -113,43 +113,111 @@ jobs:
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
 
-            # Stop nginx container if it exists (avoid nginx startup before certs are ready)
-            echo "🛑 Stopping nginx container if running..."
-            docker ps -q --filter "name=nginx" | grep -q . && docker stop nginx || echo "nginx not running."
+            # Create a temporary nginx config without SSL for initial deployment
+            echo "📝 Creating temporary nginx config without SSL..."
+            cat > nginx-temp.conf << 'EOF'
+            map $http_upgrade $connection_upgrade {
+                default upgrade;
+                ''      close;
+            }
             
-            # Paths to SSL certs
-            CERT1="/etc/letsencrypt/live/api.kochchibazaar.lk/fullchain.pem"
-            CERT2="/etc/letsencrypt/live/kochchibazaar.lk/fullchain.pem"
+            # Backend API (HTTP only for now)
+            server {
+                listen 80;
+                server_name api.kochchibazaar.lk;
             
-            # Ensure certbot is installed
-            if ! command -v certbot >/dev/null 2>&1; then
-            echo "📥 Installing Certbot..."
-            apt update && apt install certbot -y
-            fi
+                client_max_body_size 500M;
             
-            # Generate SSL certificate for backend domain if missing
-            if [ ! -f "$CERT1" ]; then
-            echo "🔧 Generating cert for api.kochchibazaar.lk..."
-            certbot certonly --standalone -d api.kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
-            else
-            echo "✅ Cert for api.kochchibazaar.lk already exists."
-            fi
+                location /api/ {
+                    rewrite ^/api(/.*)$ $1 break;
+                    proxy_pass http://backend:8000/api/;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection $connection_upgrade;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_cache_bypass $http_upgrade;
+                }
             
-            # Generate SSL certificate for frontend domain if missing
-            if [ ! -f "$CERT2" ]; then
-            echo "🔧 Generating cert for kochchibazaar.lk..."
-            certbot certonly --standalone -d kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
-            else
-            echo "✅ Cert for kochchibazaar.lk already exists."
-            fi
+                location /data_sources/ {
+                    proxy_pass http://backend:8000/data_sources/;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    expires 7d;
+                    add_header Cache-Control "public";
+                }
             
+                location /docs/ {
+                    proxy_pass http://backend:8000/docs/;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            
+                location /redoc/ {
+                    proxy_pass http://backend:8000/redoc/;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            
+                location /openapi.json {
+                    proxy_pass http://backend:8000/openapi.json;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            }
+            
+            # Frontend (HTTP only for now)
+            server {
+                listen 80;
+                server_name www.kochchibazaar.lk kochchibazaar.lk;
+            
+                location / {
+                    proxy_pass http://frontend:3000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            
+                location /_next/ {
+                    proxy_pass http://frontend:3000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            
+                location /assets/ {
+                    proxy_pass http://frontend:3000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            }
+            EOF
+            
+            # Copy the temporary config
+            cp nginx-temp.conf nginx.conf
 
-            docker start nginx || true
-
-            echo "🔧 Creating certbot volume if not exists..."
-            docker volume create certbot-etc || true
+            echo "🔧 Skipping certbot setup for now (HTTP only deployment)..."
 
             echo "🚀 Starting containers..."
-            docker-compose up -d backend frontend nginx certbot
+            docker-compose up -d backend frontend nginx
 
             echo "✅ Deployment completed successfully."
