@@ -34,9 +34,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
-      - ./nginx-entrypoint.sh:/docker-entrypoint.d/99-wait-for-cert.sh
+      - /var/lib/letsencrypt:/var/lib/letsencrypt:ro
+
     depends_on:
       - certbot
       - backend
