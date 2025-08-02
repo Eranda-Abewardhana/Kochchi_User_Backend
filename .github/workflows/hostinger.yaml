@@ -142,7 +142,18 @@ jobs:
             else
             echo "✅ Cert for kochchibazaar.lk already exists."
             fi
-            
+            docker volume create certbot-etc
+            docker volume create certbot-webroot
+
+            echo "🔧 Starting with HTTP config to enable Certbot..."
+            cp nginx-temp.conf nginx.conf
+            docker-compose up -d nginx
+
+            echo "🔐 Running Certbot to obtain SSL certs..."
+            docker run --rm -v certbot-etc:/etc/letsencrypt -v certbot-webroot:/var/lib/letsencrypt -p 80:80 certbot/certbot certonly --webroot --webroot-path=/var/lib/letsencrypt -d kochchibazaar.lk -d www.kochchibazaar.lk -d api.kochchibazaar.lk --agree-tos --email your-email@example.com --no-eff-email --force-renewal
+
+            echo "📝 Switching to HTTPS config..."
+            cp nginx-ssl.conf nginx.conf
 
             docker start nginx || true
 
