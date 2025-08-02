@@ -113,6 +113,34 @@ jobs:
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
 
+            echo "🔐 Checking and generating SSL certificates..."
+
+            CERT1="/etc/letsencrypt/live/api.kochchibazaar.lk/fullchain.pem"
+            CERT2="/etc/letsencrypt/live/kochchibazaar.lk/fullchain.pem"
+
+            if ! command -v certbot >/dev/null 2>&1; then
+              echo "📥 Installing Certbot..."
+              apt update && apt install certbot -y
+            fi
+
+            docker stop nginx || true
+
+            if [ ! -f "$CERT1" ]; then
+              echo "🔧 Generating cert for api.kochchibazaar.lk..."
+              certbot certonly --standalone -d api.kochchibazaar.lk --non-interactive --agree-tos -m your-email@example.com
+            else
+              echo "✅ Cert for api.kochchibazaar.lk exists."
+            fi
+
+            if [ ! -f "$CERT2" ]; then
+              echo "🔧 Generating cert for kochchibazaar.lk..."
+              certbot certonly --standalone -d kochchibazaar.lk --non-interactive --agree-tos -m your-email@example.com
+            else
+              echo "✅ Cert for kochchibazaar.lk exists."
+            fi
+
+            docker start nginx || true
+
             echo "🔧 Creating certbot volume if not exists..."
             docker volume create certbot-etc || true
 
