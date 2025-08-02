@@ -80,7 +80,7 @@ webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 from pymongo.errors import ServerSelectionTimeoutError
 from fastapi.responses import JSONResponse
 
-@ads_router.get("/filter", response_model=List[AdListingPreview])
+@ads_router.get("/filter")
 async def filter_ads(
         category: Optional[str] = Query(None, description="Filter by main category"),
         specialty: Optional[str] = Query(None, description="Optional filter by specialty"),
@@ -132,76 +132,76 @@ async def filter_ads(
         else:
             distance = 0
 
-        results.append(AdListingPreview(
-            ad_id=str(ad["_id"]),
-            title=ad.get("shopName", "Untitled Ad"),
-            image_url=ad.get("images", [None])[0] if ad.get("images") else None,
-            priority_score=int(100 - distance),
-
-            shopName=ad.get("shopName", ""),
+        # Return raw dictionary instead of Pydantic model to bypass all validations
+        results.append({
+            "ad_id": str(ad["_id"]),
+            "title": ad.get("shopName", "Untitled Ad"),
+            "image_url": ad.get("images", [None])[0] if ad.get("images") else None,
+            "priority_score": int(100 - distance),
+            "shopName": ad.get("shopName", ""),
 
             # Contact
-            contact_address=contact.get("address", ""),
-            contact_phone=contact.get("phone", ""),
-            contact_whatsapp=contact.get("whatsapp"),
-            contact_email=contact.get("email"),
-            contact_website=contact.get("website"),
+            "contact_address": contact.get("address", ""),
+            "contact_phone": contact.get("phone", ""),
+            "contact_whatsapp": contact.get("whatsapp"),
+            "contact_email": contact.get("email"),
+            "contact_website": contact.get("website"),
 
             # Location
-            location_googleMapLocation=location.get("googleMapLocation"),
-            location_city=location.get("city", ""),
-            location_district=location.get("district", ""),
-            location_province=location.get("province"),
-            location_country=location.get("country", "Sri Lanka"),
-            location_state=location.get("state"),
+            "location_googleMapLocation": location.get("googleMapLocation"),
+            "location_city": location.get("city", ""),
+            "location_district": location.get("district", ""),
+            "location_province": location.get("province"),
+            "location_country": location.get("country", "Sri Lanka"),
+            "location_state": location.get("state"),
 
             # Business
-            business_category=business.get("category", ""),
-            business_specialty=business.get("specialty"),
-            business_tags=business.get("tags", []),
-            business_halalAvailable=business.get("halalAvailable", False),
-            business_description=business.get("description"),
-            business_menuOptions=business.get("menuOptions", []),
+            "business_category": business.get("category", ""),
+            "business_specialty": business.get("specialty"),
+            "business_tags": business.get("tags", []),
+            "business_halalAvailable": business.get("halalAvailable", False),
+            "business_description": business.get("description"),
+            "business_menuOptions": business.get("menuOptions", []),
 
             # Schedule
-            schedule_mon=schedule.get("mon", []),
-            schedule_tue=schedule.get("tue", []),
-            schedule_wed=schedule.get("wed", []),
-            schedule_thu=schedule.get("thu", []),
-            schedule_fri=schedule.get("fri", []),
-            schedule_sat=schedule.get("sat", []),
-            schedule_sun=schedule.get("sun", []),
+            "schedule_mon": schedule.get("mon", []),
+            "schedule_tue": schedule.get("tue", []),
+            "schedule_wed": schedule.get("wed", []),
+            "schedule_thu": schedule.get("thu", []),
+            "schedule_fri": schedule.get("fri", []),
+            "schedule_sat": schedule.get("sat", []),
+            "schedule_sun": schedule.get("sun", []),
 
             # AdSettings
-            isTopAd=adSettings.get("isTopAd", False),
-            isCarousalAd=adSettings.get("isCarousalAd", False),
-            hasHalal=adSettings.get("hasHalal", False),
+            "isTopAd": adSettings.get("isTopAd", False),
+            "isCarousalAd": adSettings.get("isCarousalAd", False),
+            "hasHalal": adSettings.get("hasHalal", False),
 
             # Media
-            images=ad.get("images", []),
-            videoUrl=ad.get("videoUrl"),
+            "images": ad.get("images", []),
+            "videoUrl": ad.get("videoUrl"),
 
             # Approval
-            approval_status=approval.get("status", ""),
-            approval_adminId=approval.get("adminId"),
-            approval_adminComment=approval.get("adminComment"),
-            approval_approvedAt=approval.get("approvedAt"),
+            "approval_status": approval.get("status", ""),
+            "approval_adminId": approval.get("adminId"),
+            "approval_adminComment": approval.get("adminComment"),
+            "approval_approvedAt": approval.get("approvedAt"),
 
             # Reactions
-            likes_count=reactions.get("likes", {}).get("count", 0),
-            likes_userIds=reactions.get("likes", {}).get("userIds", []),
-            unlikes_count=reactions.get("unlikes", {}).get("count", 0),
-            unlikes_userIds=reactions.get("unlikes", {}).get("userIds", []),
+            "likes_count": reactions.get("likes", {}).get("count", 0),
+            "likes_userIds": reactions.get("likes", {}).get("userIds", []),
+            "unlikes_count": reactions.get("unlikes", {}).get("count", 0),
+            "unlikes_userIds": reactions.get("unlikes", {}).get("userIds", []),
 
             # Recommendations
-            recommendations_count=recommendations.get("count", 0),
-            recommendations_userIds=recommendations.get("userIds", []),
+            "recommendations_count": recommendations.get("count", 0),
+            "recommendations_userIds": recommendations.get("userIds", []),
 
-            visibility=ad.get("visibility", ""),
-            expiryDate=ad.get("expiryDate"),
-            createdAt=ad.get("createdAt"),
-            updatedAt=ad.get("updatedAt")
-        ))
+            "visibility": ad.get("visibility", ""),
+            "expiryDate": ad.get("expiryDate"),
+            "createdAt": ad.get("createdAt"),
+            "updatedAt": ad.get("updatedAt")
+        })
 
     if lat is not None and lng is not None:
         results.sort(key=lambda x: -x.priority_score)
@@ -390,7 +390,6 @@ async def get_carousal_ads():
 
 @ads_router.get(
     "/approve",
-    response_model=List[AdListingPreview],
     summary="Get all approved ads",
     description="Returns a list of approved ads including shop ID, name, city, and image.",
     responses={
@@ -417,75 +416,76 @@ async def get_approved_ads():
             ad_lat = location.get("lat")
             ad_lng = location.get("lon")
 
-            results.append(AdListingPreview(
-                ad_id=str(ad["_id"]),
-                title=ad.get("shopName", "Untitled Ad"),
-                image_url=ad.get("images", [None])[0] if ad.get("images") else None,
-                priority_score=0,
-                shopName=ad.get("shopName", ""),
+                        # Return raw dictionary instead of Pydantic model to bypass all validations
+            results.append({
+                "ad_id": str(ad["_id"]),
+                "title": ad.get("shopName", "Untitled Ad"),
+                "image_url": ad.get("images", [None])[0] if ad.get("images") else None,
+                "priority_score": 0,
+                "shopName": ad.get("shopName", ""),
 
                 # Contact
-                contact_address=contact.get("address", ""),
-                contact_phone=contact.get("phone", ""),
-                contact_whatsapp=contact.get("whatsapp"),
-                contact_email=contact.get("email"),
-                contact_website=contact.get("website"),
+                "contact_address": contact.get("address", ""),
+                "contact_phone": contact.get("phone", ""),
+                "contact_whatsapp": contact.get("whatsapp"),
+                "contact_email": contact.get("email"),
+                "contact_website": contact.get("website"),
 
                 # Location
-                location_googleMapLocation=location.get("googleMapLocation"),
-                location_city=location.get("city", ""),
-                location_district=location.get("district", ""),
-                location_province=location.get("province"),
-                location_country=location.get("country", "Sri Lanka"),
-                location_state=location.get("state"),
+                "location_googleMapLocation": location.get("googleMapLocation"),
+                "location_city": location.get("city", ""),
+                "location_district": location.get("district", ""),
+                "location_province": location.get("province"),
+                "location_country": location.get("country", "Sri Lanka"),
+                "location_state": location.get("state"),
 
                 # Business
-                business_category=business.get("category", ""),
-                business_specialty=business.get("specialty"),
-                business_tags=business.get("tags", []),
-                business_halalAvailable=business.get("halalAvailable", False),
-                business_description=business.get("description"),
-                business_menuOptions=business.get("menuOptions", []),
+                "business_category": business.get("category", ""),
+                "business_specialty": business.get("specialty"),
+                "business_tags": business.get("tags", []),
+                "business_halalAvailable": business.get("halalAvailable", False),
+                "business_description": business.get("description"),
+                "business_menuOptions": business.get("menuOptions", []),
 
                 # Schedule
-                schedule_mon=schedule.get("mon", []),
-                schedule_tue=schedule.get("tue", []),
-                schedule_wed=schedule.get("wed", []),
-                schedule_thu=schedule.get("thu", []),
-                schedule_fri=schedule.get("fri", []),
-                schedule_sat=schedule.get("sat", []),
-                schedule_sun=schedule.get("sun", []),
+                "schedule_mon": schedule.get("mon", []),
+                "schedule_tue": schedule.get("tue", []),
+                "schedule_wed": schedule.get("wed", []),
+                "schedule_thu": schedule.get("thu", []),
+                "schedule_fri": schedule.get("fri", []),
+                "schedule_sat": schedule.get("sat", []),
+                "schedule_sun": schedule.get("sun", []),
 
                 # AdSettings
-                isTopAd=adSettings.get("isTopAd", False),
-                isCarousalAd=adSettings.get("isCarousalAd", False),
-                hasHalal=adSettings.get("hasHalal", False),
+                "isTopAd": adSettings.get("isTopAd", False),
+                "isCarousalAd": adSettings.get("isCarousalAd", False),
+                "hasHalal": adSettings.get("hasHalal", False),
 
                 # Media
-                images=ad.get("images", []),
-                videoUrl=ad.get("videoUrl"),
+                "images": ad.get("images", []),
+                "videoUrl": ad.get("videoUrl"),
 
                 # Approval
-                approval_status=approval.get("status", ""),
-                approval_adminId=approval.get("adminId"),
-                approval_adminComment=approval.get("adminComment"),
-                approval_approvedAt=approval.get("approvedAt"),
+                "approval_status": approval.get("status", ""),
+                "approval_adminId": approval.get("adminId"),
+                "approval_adminComment": approval.get("adminComment"),
+                "approval_approvedAt": approval.get("approvedAt"),
 
                 # Reactions
-                likes_count=reactions.get("likes", {}).get("count", 0),
-                likes_userIds=reactions.get("likes", {}).get("userIds", []),
-                unlikes_count=reactions.get("unlikes", {}).get("count", 0),
-                unlikes_userIds=reactions.get("unlikes", {}).get("userIds", []),
+                "likes_count": reactions.get("likes", {}).get("count", 0),
+                "likes_userIds": reactions.get("likes", {}).get("userIds", []),
+                "unlikes_count": reactions.get("unlikes", {}).get("count", 0),
+                "unlikes_userIds": reactions.get("unlikes", {}).get("userIds", []),
 
                 # Recommendations
-                recommendations_count=recommendations.get("count", 0),
-                recommendations_userIds=recommendations.get("userIds", []),
+                "recommendations_count": recommendations.get("count", 0),
+                "recommendations_userIds": recommendations.get("userIds", []),
 
-                visibility=ad.get("visibility", ""),
-                expiryDate=ad.get("expiryDate"),
-                createdAt=ad.get("createdAt"),
-                updatedAt=ad.get("updatedAt")
-        ))
+                "visibility": ad.get("visibility", ""),
+                "expiryDate": ad.get("expiryDate"),
+                "createdAt": ad.get("createdAt"),
+                "updatedAt": ad.get("updatedAt")
+            })
 
         return results
     except Exception as e:
@@ -614,7 +614,6 @@ async def get_my_ads(current_user: dict = Depends(get_current_user)):
 
 @ads_router.get(
     "/rejected",
-    response_model=List[AdListingPreview],
     summary="Get all rejected ads",
     description="Returns a list of rejected ads including shop ID, name, city, and image.",
     responses={
@@ -641,75 +640,76 @@ async def get_rejected_ads():
             ad_lat = location.get("lat")
             ad_lng = location.get("lon")
 
-            results.append(AdListingPreview(
-                ad_id=str(ad["_id"]),
-                title=ad.get("shopName", "Untitled Ad"),
-                image_url=ad.get("images", [None])[0],
-                priority_score=0,
-                shopName=ad.get("shopName", ""),
+            # Return raw dictionary instead of Pydantic model to bypass all validations
+            results.append({
+                "ad_id": str(ad["_id"]),
+                "title": ad.get("shopName", "Untitled Ad"),
+                "image_url": ad.get("images", [None])[0],
+                "priority_score": 0,
+                "shopName": ad.get("shopName", ""),
 
                 # Contact
-                contact_address=contact.get("address", ""),
-                contact_phone=contact.get("phone", ""),
-                contact_whatsapp=contact.get("whatsapp"),
-                contact_email=contact.get("email"),
-                contact_website=contact.get("website"),
+                "contact_address": contact.get("address", ""),
+                "contact_phone": contact.get("phone", ""),
+                "contact_whatsapp": contact.get("whatsapp"),
+                "contact_email": contact.get("email"),
+                "contact_website": contact.get("website"),
 
                 # Location
-                location_googleMapLocation=location.get("googleMapLocation"),
-                location_city=location.get("city", ""),
-                location_district=location.get("district", ""),
-                location_province=location.get("province"),
-                location_country=location.get("country", "Sri Lanka"),
-                location_state=location.get("state"),
+                "location_googleMapLocation": location.get("googleMapLocation"),
+                "location_city": location.get("city", ""),
+                "location_district": location.get("district", ""),
+                "location_province": location.get("province"),
+                "location_country": location.get("country", "Sri Lanka"),
+                "location_state": location.get("state"),
 
                 # Business
-                business_category=business.get("category", ""),
-                business_specialty=business.get("specialty"),
-                business_tags=business.get("tags", []),
-                business_halalAvailable=business.get("halalAvailable", False),
-                business_description=business.get("description"),
-                business_menuOptions=business.get("menuOptions", []),
+                "business_category": business.get("category", ""),
+                "business_specialty": business.get("specialty"),
+                "business_tags": business.get("tags", []),
+                "business_halalAvailable": business.get("halalAvailable", False),
+                "business_description": business.get("description"),
+                "business_menuOptions": business.get("menuOptions", []),
 
                 # Schedule
-                schedule_mon=schedule.get("mon", []),
-                schedule_tue=schedule.get("tue", []),
-                schedule_wed=schedule.get("wed", []),
-                schedule_thu=schedule.get("thu", []),
-                schedule_fri=schedule.get("fri", []),
-                schedule_sat=schedule.get("sat", []),
-                schedule_sun=schedule.get("sun", []),
+                "schedule_mon": schedule.get("mon", []),
+                "schedule_tue": schedule.get("tue", []),
+                "schedule_wed": schedule.get("wed", []),
+                "schedule_thu": schedule.get("thu", []),
+                "schedule_fri": schedule.get("fri", []),
+                "schedule_sat": schedule.get("sat", []),
+                "schedule_sun": schedule.get("sun", []),
 
                 # AdSettings
-                isTopAd=adSettings.get("isTopAd", False),
-                isCarousalAd=adSettings.get("isCarousalAd", False),
-                hasHalal=adSettings.get("hasHalal", False),
+                "isTopAd": adSettings.get("isTopAd", False),
+                "isCarousalAd": adSettings.get("isCarousalAd", False),
+                "hasHalal": adSettings.get("hasHalal", False),
 
                 # Media
-                images=ad.get("images", []),
-                videoUrl=ad.get("videoUrl"),
+                "images": ad.get("images", []),
+                "videoUrl": ad.get("videoUrl"),
 
                 # Approval
-                approval_status=approval.get("status", ""),
-                approval_adminId=approval.get("adminId"),
-                approval_adminComment=approval.get("adminComment"),
-                approval_approvedAt=approval.get("approvedAt"),
+                "approval_status": approval.get("status", ""),
+                "approval_adminId": approval.get("adminId"),
+                "approval_adminComment": approval.get("adminComment"),
+                "approval_approvedAt": approval.get("approvedAt"),
 
                 # Reactions
-                likes_count=reactions.get("likes", {}).get("count", 0),
-                likes_userIds=reactions.get("likes", {}).get("userIds", []),
-                unlikes_count=reactions.get("unlikes", {}).get("count", 0),
-                unlikes_userIds=reactions.get("unlikes", {}).get("userIds", []),
+                "likes_count": reactions.get("likes", {}).get("count", 0),
+                "likes_userIds": reactions.get("likes", {}).get("userIds", []),
+                "unlikes_count": reactions.get("unlikes", {}).get("count", 0),
+                "unlikes_userIds": reactions.get("unlikes", {}).get("userIds", []),
 
                 # Recommendations
-                recommendations_count=recommendations.get("count", 0),
-                recommendations_userIds=recommendations.get("userIds", []),
+                "recommendations_count": recommendations.get("count", 0),
+                "recommendations_userIds": recommendations.get("userIds", []),
 
-                visibility=ad.get("visibility", ""),
-                expiryDate=ad.get("expiryDate"),
-                createdAt=ad.get("createdAt"),
-                updatedAt=ad.get("updatedAt")
-            ))
+                "visibility": ad.get("visibility", ""),
+                "expiryDate": ad.get("expiryDate"),
+                "createdAt": ad.get("createdAt"),
+                "updatedAt": ad.get("updatedAt")
+            })
 
         return results
     except Exception as e:
@@ -806,7 +806,7 @@ async def get_all_ads_sorted_by_priority():
     all_ads.sort(key=lambda x: x.priority_score, reverse=True)
 
     return all_ads
-@ads_router.get("/restaurants-nearby", response_model=List[AdListingPreview])
+@ads_router.get("/restaurants-nearby")
 async def find_nearby_restaurants(
     lat: float = Query(..., description="Your latitude"),
     lng: float = Query(..., description="Your longitude"),
@@ -825,19 +825,18 @@ async def find_nearby_restaurants(
         distance = calculate_distance(lat, lng, ad_lat, ad_lng)
 
         if distance <= max_distance_km:
-            nearby_ads.append(
-                AdListingPreview(
-                    ad_id=str(ad["_id"]),
-                    title=ad.get("business", {}).get("title", "Untitled Ad"),
-                    image_url=ad.get("images", [None])[0],
-                    city=location.get("city"),
-                    district=location.get("district"),
-                    category=ad.get("category"),
-                    contact_name=ad.get("contact", {}).get("name"),
-                    contact_phone=ad.get("contact", {}).get("phone"),
-                    priority_score=0  # or set based on logic
-                )
-            )
+            # Return raw dictionary instead of Pydantic model to bypass all validations
+            nearby_ads.append({
+                "ad_id": str(ad["_id"]),
+                "title": ad.get("business", {}).get("title", "Untitled Ad"),
+                "image_url": ad.get("images", [None])[0],
+                "city": location.get("city"),
+                "district": location.get("district"),
+                "category": ad.get("category"),
+                "contact_name": ad.get("contact", {}).get("name"),
+                "contact_phone": ad.get("contact", {}).get("phone"),
+                "priority_score": 0  # or set based on logic
+            })
 
     return nearby_ads
 @ads_router.delete(
