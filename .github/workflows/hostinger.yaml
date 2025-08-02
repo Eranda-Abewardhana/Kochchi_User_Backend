@@ -136,7 +136,7 @@ jobs:
               echo "🔧 Generating cert for kochchibazaar.lk..."
               certbot certonly --standalone -d kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
             else
-              echo "✅ Cert for kochchibazaar.lk exists."
+              echo "✅  Cert for kochchibazaar.lk exists."
             fi
 
             docker start nginx || true
