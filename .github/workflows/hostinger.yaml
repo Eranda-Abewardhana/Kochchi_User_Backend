@@ -55,9 +55,9 @@ jobs:
               chmod +x /usr/local/bin/docker-compose
             fi
 
-            echo "🔄 Cloning or updating repo..."
-            if [ ! -d "/root/Kochchi_Bazar" ]; then
-            git clone https://github.com/Eranda-Abewardhana/Kochchi_Bazar.git /root/Kochchi_User_Backend
+            echo "🔄 Cloning or updating the repository..."
+            if [ ! -d "/root/Kochchi_User_Backend" ]; then
+            git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
             else
             cd /root/Kochchi_User_Backend
             git fetch origin
