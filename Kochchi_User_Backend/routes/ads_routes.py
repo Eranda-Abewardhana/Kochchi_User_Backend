@@ -387,7 +387,28 @@ async def get_carousal_ads():
 
     return result
 
+@ads_router.get("/pending")
+async def get_pending_ads():
+    cursor = ads_collection.find({
+        "approval.status": "pending"
+    })
 
+    ads = await cursor.to_list(length=None)
+
+    if not ads:
+        raise HTTPException(status_code=404, detail="No carousal ads found")
+
+    result = []
+
+    for ad in ads:
+        try:
+            ad["_id"] = str(ad["_id"])  # Convert ObjectId to string
+            result.append(ad)
+        except Exception as e:
+            print(f"Error processing ad {ad.get('_id')}: {e}")
+            continue
+
+    return result
 @ads_router.get(
     "/approve",
     summary="Get all approved ads",
@@ -490,109 +511,6 @@ async def get_approved_ads():
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve approved ads: {str(e)}")
-@ads_router.get(
-    "/pending",
-    summary="Get all pending ads",
-    description="Returns a list of pending ads including shop ID, name, city, and image.",
-    responses={
-        400: {"model": ErrorResponse},
-        422: {"model": ErrorResponse},
-        500: {"model": ErrorResponse}
-    },
-    status_code=status.HTTP_200_OK
-)
-async def get_pending_ads():
-    try:
-        ads = await ads_collection.find({"approval.status": "pending"}).to_list(length=None)
-        results = []
-        for ad in ads:
-            contact = ad.get("contact", {})
-            location = ad.get("location", {})
-            business = ad.get("business", {})
-            schedule = ad.get("schedule", {})
-            adSettings = ad.get("adSettings", {})
-            approval = ad.get("approval", {})
-            reactions = ad.get("reactions", {})
-            recommendations = ad.get("recommendations", {})
-
-            ad_lat = location.get("lat")
-            ad_lng = location.get("lon")
-
-            # Return raw dictionary instead of Pydantic model to bypass all validations
-            results.append({
-                "ad_id": str(ad["_id"]),
-                "title": ad.get("shopName", "Untitled Ad"),
-                "image_url": ad.get("images", [None])[0] if ad.get("images") else None,
-                "priority_score": 0,
-                "shopName": ad.get("shopName", ""),
-
-                # Contact
-                "contact_address": contact.get("address", ""),
-                "contact_phone": contact.get("phone", ""),
-                "contact_whatsapp": contact.get("whatsapp"),
-                "contact_email": contact.get("email"),
-                "contact_website": contact.get("website"),
-
-                # Location
-                "location_googleMapLocation": location.get("googleMapLocation"),
-                "location_city": location.get("city", ""),
-                "location_district": location.get("district", ""),
-                "location_province": location.get("province"),
-                "location_country": location.get("country", "Sri Lanka"),
-                "location_state": location.get("state"),
-
-                # Business
-                "business_category": business.get("category", ""),
-                "business_specialty": business.get("specialty"),
-                "business_tags": business.get("tags", []),
-                "business_halalAvailable": business.get("halalAvailable", False),
-                "business_description": business.get("description"),
-                "business_menuOptions": business.get("menuOptions", []),
-
-                # Schedule
-                "schedule_mon": schedule.get("mon", []),
-                "schedule_tue": schedule.get("tue", []),
-                "schedule_wed": schedule.get("wed", []),
-                "schedule_thu": schedule.get("thu", []),
-                "schedule_fri": schedule.get("fri", []),
-                "schedule_sat": schedule.get("sat", []),
-                "schedule_sun": schedule.get("sun", []),
-
-                # AdSettings
-                "isTopAd": adSettings.get("isTopAd", False),
-                "isCarousalAd": adSettings.get("isCarousalAd", False),
-                "hasHalal": adSettings.get("hasHalal", False),
-
-                # Media
-                "images": ad.get("images", []),
-                "videoUrl": ad.get("videoUrl"),
-
-                # Approval
-                "approval_status": approval.get("status", ""),
-                "approval_adminId": approval.get("adminId"),
-                "approval_adminComment": approval.get("adminComment"),
-                "approval_approvedAt": approval.get("approvedAt"),
-
-                # Reactions
-                "likes_count": reactions.get("likes", {}).get("count", 0),
-                "likes_userIds": reactions.get("likes", {}).get("userIds", []),
-                "unlikes_count": reactions.get("unlikes", {}).get("count", 0),
-                "unlikes_userIds": reactions.get("unlikes", {}).get("userIds", []),
-
-                # Recommendations
-                "recommendations_count": recommendations.get("count", 0),
-                "recommendations_userIds": recommendations.get("userIds", []),
-
-                "visibility": ad.get("visibility", ""),
-                "expiryDate": ad.get("expiryDate"),
-                "createdAt": ad.get("createdAt"),
-                "updatedAt": ad.get("updatedAt")
-            })
-
-        return results
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve pending ads: {str(e)}")
 
 @ads_router.get("/my", responses={401: {"model": ErrorResponse}}, status_code=status.HTTP_200_OK)
 async def get_my_ads(current_user: dict = Depends(get_current_user)):
