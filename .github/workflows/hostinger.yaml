@@ -126,7 +126,7 @@ jobs:
 
             echo "📝 Switch nginx to HTTPS config..."
             docker-compose down
-            cp nginx-ssl.conf nginx.conf
+            cp nginx.conf nginx.conf
 
             echo "🚀 Start all containers with HTTPS..."
             docker-compose up -d backend frontend nginx
