@@ -34,7 +34,6 @@ services:
       - certbot-etc:/etc/letsencrypt:ro
       - certbot-webroot:/var/lib/letsencrypt:ro
 
-
     depends_on:
       - certbot
       - backend

@@ -124,21 +124,33 @@ jobs:
             echo "🕒 Waiting for nginx to be ready..."
             sleep 5
 
-            echo "🔐 Run Certbot in Docker for SSL certificates..."
-            docker run --rm \
-              -v certbot-etc:/etc/letsencrypt \
-              -v certbot-webroot:/var/lib/letsencrypt \
-              -p 80:80 \
-              certbot/certbot certonly \
-              --webroot --webroot-path=/var/lib/letsencrypt \
-              -d kochchibazaar.lk -d www.kochchibazaar.lk -d api.kochchibazaar.lk \
-              --agree-tos --email premathilakacp@gmail.com --no-eff-email --force-renewal
-
+            eecho "🔧 Prepare volumes for Certbot..."
+            docker volume create certbot-etc || true
+            docker volume create certbot-webroot || true
+            
+            echo "🔧 Deploy HTTP-only nginx for Certbot challenge..."
+            cp nginx-temp.conf nginx.conf
+            docker-compose up -d nginx
+            
+            echo "🕒 Waiting for nginx to be ready..."
+            sleep 5
+            
+            echo "🔐 Run Certbot on host to obtain SSL certs..."
+            if ! command -v certbot >/dev/null 2>&1; then
+            echo "📥 Installing Certbot..."
+            apt update && apt install certbot -y
+            fi
+            
+            certbot certonly --webroot \
+            --webroot-path /var/lib/letsencrypt \
+            -d kochchibazaar.lk -d www.kochchibazaar.lk -d api.kochchibazaar.lk \
+            --agree-tos --email premathilakacp@gmail.com --no-eff-email --force-renewal
+            
             echo "📝 Switch nginx to HTTPS config..."
             docker-compose down
             cp nginx-ssl.conf nginx.conf
-
+            
             echo "🚀 Start all containers with HTTPS..."
             docker-compose up -d backend frontend nginx
-
+            
             echo "✅ Deployment with SSL complete."
