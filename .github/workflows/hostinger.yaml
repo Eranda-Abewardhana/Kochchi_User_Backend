@@ -62,8 +62,9 @@ jobs:
             cd /root/Kochchi_User_Backend
             git fetch origin
             git checkout main
-            git pull origin main
-            fi
+            git pull origin main  
+            fi            
+            cd /root/Kochchi_User_Backend
   
             echo "📝 Creating .env file..."
             echo "IMAGE_TAG=${IMAGE_TAG}" > Kochchi_User_Backend/.env
