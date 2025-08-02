@@ -32,7 +32,8 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - /etc/letsencrypt:/etc/letsencrypt:ro
-      - ./nginx-entrypoint.sh:/docker-entrypoint.d/99-wait-for-cert.sh
+      # Optional: use this only if file exists
+      # - ./nginx-entrypoint.sh:/docker-entrypoint.d/99-wait-for-cert.sh
     depends_on:
       - certbot
       - backend
