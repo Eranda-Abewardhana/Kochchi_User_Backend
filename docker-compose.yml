@@ -3,7 +3,7 @@ version: '3.8'
 services:
 
   backend:
-    image: eranda24/kochchi_app_backend:${IMAGE_TAG:-latest}
+    image: eranda24/kochchi_app:${IMAGE_TAG:-latest}
     container_name: backend
     restart: always
     env_file:
