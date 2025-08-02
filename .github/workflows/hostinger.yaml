@@ -74,9 +74,12 @@ jobs:
             
             fi            
             cd /root/Kochchi_User_Backend
+
+          # Add this line
+
   
             echo "📝 Creating .env file..."
-            echo "IMAGE_TAG=${IMAGE_TAG}" > Kochchi_User_Backend/.env
+            echo "IMAGE_TAG=${IMAGE_TAG}" > .env
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> Kochchi_User_Backend/.env
             echo "ALGORITHM=HS256" >> Kochchi_User_Backend/.env
             echo "ACCESS_TOKEN_EXPIRE_MINUTES=300" >> Kochchi_User_Backend/.env
@@ -103,11 +106,25 @@ jobs:
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
             echo "🧹 Cleaning up..."
+            # Docker login
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            # Cleanup
             docker-compose down || true
             docker image rm eranda24/kochchi_app_backend:$IMAGE_TAG || true
             docker image rm eranda24/kochchi_app_frontend:$IMAGE_TAG || true
             docker system prune -af || true
 
+            # Pull latest images
+            docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
+            docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
+
+            # Certbot volume (idempotent)
+            docker volume create certbot-etc || true
+
+            # Run containers
+            docker-compose up -d backend frontend nginx certbot                    
+                    
             echo "📦 Pulling latest images..."
             echo "Pulling backend image: eranda24/kochchi_app_backend:$IMAGE_TAG"
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
