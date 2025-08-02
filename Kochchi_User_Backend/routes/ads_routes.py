@@ -80,6 +80,28 @@ webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 from pymongo.errors import ServerSelectionTimeoutError
 from fastapi.responses import JSONResponse
 
+@ads_router.get("/pending-ads")
+async def get_pending_ads_new():
+    cursor = ads_collection.find({
+        "approval.status": "pending"
+    })
+
+    ads = await cursor.to_list(length=None)
+
+    if not ads:
+        raise HTTPException(status_code=404, detail="No carousal ads found")
+
+    result = []
+
+    for ad in ads:
+        try:
+            ad["_id"] = str(ad["_id"])  # Convert ObjectId to string
+            result.append(ad)
+        except Exception as e:
+            print(f"Error processing ad {ad.get('_id')}: {e}")
+            continue
+
+    return result
 @ads_router.get("/filter")
 async def filter_ads(
         category: Optional[str] = Query(None, description="Filter by main category"),
@@ -387,28 +409,6 @@ async def get_carousal_ads():
 
     return result
 
-@ads_router.get("/pending")
-async def get_pending_ads():
-    cursor = ads_collection.find({
-        "approval.status": "pending"
-    })
-
-    ads = await cursor.to_list(length=None)
-
-    if not ads:
-        raise HTTPException(status_code=404, detail="No carousal ads found")
-
-    result = []
-
-    for ad in ads:
-        try:
-            ad["_id"] = str(ad["_id"])  # Convert ObjectId to string
-            result.append(ad)
-        except Exception as e:
-            print(f"Error processing ad {ad.get('_id')}: {e}")
-            continue
-
-    return result
 @ads_router.get(
     "/approve",
     summary="Get all approved ads",
