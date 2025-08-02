@@ -77,24 +77,37 @@ function LoginPage() {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
+      // Console log the Google response for testing
+      console.log('Google Login Response:', credentialResponse);
+      console.log('Google ID Token:', credentialResponse.credential);
+      
+      // Make API call to your backend
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/google`, {
         google_id_token: credentialResponse.credential,
       });
+      
+      // Console log the API response
+      console.log('Backend API Response:', res.data);
+      console.log('Access Token:', res.data.access_token);
+      
       alert('Login success! Token: ' + res.data.access_token);
       localStorage.setItem('access_token', res.data.access_token);
       // Optionally store other user info here
       router.push('/');
     } catch (err) {
+      console.error('Google Login Error:', err);
+      console.error('Error Response:', err.response?.data);
       alert('Login failed: ' + (err.response?.data?.detail || err.message));
     }
   };
 
-  const handleGoogleError = () => {
+  const handleGoogleError = (error) => {
+    console.error('Google Login Error:', error);
     alert('Google login failed');
   };
 
   return (
-    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
+    <GoogleOAuthProvider clientId="896094651555-1k4e7ftch3j6rehn3hbi635ut96hib7r.apps.googleusercontent.com">
       {showToast && <Toast message="Successfully logged in!" />}
       <div className={`min-h-screen bg-gray-100 flex items-center justify-center p-4 pt-25 ${poppins.className}`}>
         <motion.div
