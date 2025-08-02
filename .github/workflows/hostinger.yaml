@@ -124,23 +124,6 @@ jobs:
             echo "🕒 Wait for nginx to be ready..."
             sleep 5
 
-#            echo "📦 Prepare challenge path on host..."
-#            mkdir -p /var/lib/letsencrypt
-#            docker run --rm \
-#              -v certbot-webroot:/var/lib/letsencrypt \
-#              -v /var/lib/letsencrypt:/copy \
-#              alpine sh -c "cp -r /copy/* /var/lib/letsencrypt || true"
-#
-#            echo "🔐 Run Certbot (host) for SSL certs..."
-#            if ! command -v certbot >/dev/null 2>&1; then
-#              apt install -y certbot
-#            fi
-#
-#            certbot certonly --webroot \
-#              --webroot-path /var/lib/letsencrypt \
-#              -d kochchibazaar.lk -d www.kochchibazaar.lk -d api.kochchibazaar.lk \
-#              --agree-tos --email premathilakacp@gmail.com --no-eff-email --force-renewal
-
             echo "📝 Switch nginx to HTTPS config..."
             docker-compose down
             cp nginx-ssl.conf nginx.conf
