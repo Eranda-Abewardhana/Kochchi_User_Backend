@@ -113,33 +113,38 @@ jobs:
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
 
-            echo "🔐 Checking and generating SSL certificates..."
-
+            # Stop nginx container if it exists (avoid nginx startup before certs are ready)
+            echo "🛑 Stopping nginx container if running..."
+            docker ps -q --filter "name=nginx" | grep -q . && docker stop nginx || echo "nginx not running."
+            
+            # Paths to SSL certs
             CERT1="/etc/letsencrypt/live/api.kochchibazaar.lk/fullchain.pem"
             CERT2="/etc/letsencrypt/live/kochchibazaar.lk/fullchain.pem"
-
+            
+            # Ensure certbot is installed
             if ! command -v certbot >/dev/null 2>&1; then
-              echo "📥 Installing Certbot..."
-              apt update && apt install certbot -y
+            echo "📥 Installing Certbot..."
+            apt update && apt install certbot -y
             fi
-
-            docker stop nginx || true
-
+            
+            # Generate SSL certificate for backend domain if missing
             if [ ! -f "$CERT1" ]; then
-              echo "🔧 Generating cert for api.kochchibazaar.lk..."
-              certbot certonly --standalone -d api.kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
+            echo "🔧 Generating cert for api.kochchibazaar.lk..."
+            certbot certonly --standalone -d api.kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
             else
-              echo "✅ Cert for api.kochchibazaar.lk exists."
+            echo "✅ Cert for api.kochchibazaar.lk already exists."
             fi
-
+            
+            # Generate SSL certificate for frontend domain if missing
             if [ ! -f "$CERT2" ]; then
-              echo "🔧 Generating cert for kochchibazaar.lk..."
-              certbot certonly --standalone -d kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
+            echo "🔧 Generating cert for kochchibazaar.lk..."
+            certbot certonly --standalone -d kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
             else
-              echo "✅  Cert for kochchibazaar.lk exists."
+            echo "✅ Cert for kochchibazaar.lk already exists."
             fi
+            
 
-            docker start nginx || true
+  docker start nginx || true
 
             echo "🔧 Creating certbot volume if not exists..."
             docker volume create certbot-etc || true
