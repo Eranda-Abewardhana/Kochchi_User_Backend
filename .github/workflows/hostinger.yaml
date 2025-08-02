@@ -32,12 +32,6 @@ jobs:
           echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
           docker push eranda24/kochchi_app_frontend:${{ github.ref_name }}
 
-      - name: Verify images were pushed
-        run: |
-          echo "🔍 Verifying images were pushed to Docker Hub..."
-          docker pull eranda24/kochchi_app_backend:${{ github.ref_name }}
-          docker pull eranda24/kochchi_app_frontend:${{ github.ref_name }}
-          echo "✅ Images verified successfully!"
 
       - name: Deploy to Hostinger VPS
         uses: appleboy/ssh-action@master
@@ -49,13 +43,13 @@ jobs:
             set -e
             IMAGE_TAG="${{ github.ref_name }}"
 
-            echo "🔧 Installing Docker if needed..."
+            echo "🔧 Checking Docker..."
             if ! command -v docker >/dev/null 2>&1; then
               apt update && apt install docker.io -y
               systemctl start docker && systemctl enable docker
             fi
 
-            echo "🔧 Installing Docker Compose if needed..."
+            echo "🔧 Checking Docker Compose..."
             if ! command -v docker-compose >/dev/null 2>&1; then
               curl -SL https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
               chmod +x /usr/local/bin/docker-compose
@@ -63,21 +57,16 @@ jobs:
 
             echo "🔄 Cloning or updating the repository..."
             if [ ! -d "/root/Kochchi_User_Backend" ]; then
-              git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
+            git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
             else
-              cd /root/Kochchi_User_Backend
-              git fetch origin
-              git checkout main
-              git pull origin main
-            fi
-
             cd /root/Kochchi_User_Backend
-
-            echo "📝 Creating root .env for docker-compose..."
+            git fetch origin
+            git checkout main
+            git pull origin main
+            fi
+  
+            echo "📝 Creating .env file..."
             echo "IMAGE_TAG=${IMAGE_TAG}" > .env
-
-            echo "📝 Creating backend config .env..."
-            echo "IMAGE_TAG=${IMAGE_TAG}" > Kochchi_User_Backend/.env
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> Kochchi_User_Backend/.env
             echo "ALGORITHM=HS256" >> Kochchi_User_Backend/.env
             echo "ACCESS_TOKEN_EXPIRE_MINUTES=300" >> Kochchi_User_Backend/.env
@@ -99,33 +88,18 @@ jobs:
             echo "CLOUD_API_SECRET=${{ secrets.CLOUD_API_SECRET }}" >> Kochchi_User_Backend/.env
             echo "CANCEL_URL=${{ secrets.CANCEL_URL }}" >> Kochchi_User_Backend/.env
             echo "SUCCESS_URL=${{ secrets.SUCCESS_URL }}" >> Kochchi_User_Backend/.env
-
-            echo "🔐 Docker login..."
-            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-            echo "🧹 Cleanup..."
+            
+            echo "🧹 Cleaning up..."
             docker-compose down || true
             docker image rm eranda24/kochchi_app_backend:$IMAGE_TAG || true
             docker image rm eranda24/kochchi_app_frontend:$IMAGE_TAG || true
             docker system prune -af || true
 
-            echo "📦 Pull latest images..."
+            echo "📦 Pulling latest images..."
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
 
-            echo "🔧 Prepare Certbot volumes..."
-            docker volume create certbot-etc || true
-            docker volume create certbot-webroot || true
+            echo "🚀 Starting containers..."
+            docker-compose up -d backend frontend nginx certbot
 
-            echo "🔧 Deploy HTTP nginx for Certbot challenge..."
-            cp nginx-temp.conf nginx.conf
-            docker-compose up -d nginx
-
-            echo "🕒 Wait for nginx to be ready..."
-            sleep 5
-
-
-            echo "🚀 Start all containers with HTTPS..."
-            docker-compose up -d backend frontend nginx
-
-            echo "✅ Deployment with SSL complete."
+            echo "✅ Deployment finished."

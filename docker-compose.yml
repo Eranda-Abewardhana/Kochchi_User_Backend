@@ -3,7 +3,7 @@ version: '3.8'
 services:
 
   backend:
-    image: eranda24/kochchi_app_backend:${IMAGE_TAG:-latest}
+    image: eranda24/kochchi_app:${IMAGE_TAG:-latest}
     container_name: backend
     restart: always
     env_file:
@@ -14,7 +14,11 @@ services:
       - internal
 
   frontend:
-    image: eranda24/kochchi_app_frontend:${IMAGE_TAG:-latest}
+    build:
+      context: ./kochchi-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://api.kochchibazaar.lk/api
     container_name: frontend
     restart: always
     networks:
@@ -56,6 +60,7 @@ services:
 volumes:
   certbot-webroot:
   certbot-etc:
+    external: true
 
 networks:
   internal:
