@@ -134,7 +134,7 @@ jobs:
 
             if [ ! -f "$CERT2" ]; then
               echo "🔧 Generating cert for kochchibazaar.lk..."
-              certbot certonly --standalone -d kochchibazaar.lk --non-interactive --agree-tos -m your-email@example.com
+              certbot certonly --standalone -d kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
             else
               echo "✅ Cert for kochchibazaar.lk exists."
             fi
