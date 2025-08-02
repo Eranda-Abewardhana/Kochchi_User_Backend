@@ -100,67 +100,45 @@ jobs:
             echo "CANCEL_URL=${{ secrets.CANCEL_URL }}" >> Kochchi_User_Backend/.env
             echo "SUCCESS_URL=${{ secrets.SUCCESS_URL }}" >> Kochchi_User_Backend/.env
 
-            echo "🔐 Logging into Docker Hub..."
+            echo "🔐 Docker login..."
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            echo "🧹 Cleaning up existing containers and images..."
+            echo "🧹 Clean old containers/images..."
             docker-compose down || true
             docker image rm eranda24/kochchi_app_backend:$IMAGE_TAG || true
             docker image rm eranda24/kochchi_app_frontend:$IMAGE_TAG || true
             docker system prune -af || true
 
-            echo "📦  Pulling latest images..."
+            echo "📦 Pull latest images..."
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
 
-            # Stop nginx container if it exists (avoid nginx startup before certs are ready)
-            echo "🛑 Stopping nginx container if running..."
-            docker ps -q --filter "name=nginx" | grep -q . && docker stop nginx || echo "nginx not running."
-            
-            # Paths to SSL certs
-            CERT1="/etc/letsencrypt/live/api.kochchibazaar.lk/fullchain.pem"
-            CERT2="/etc/letsencrypt/live/kochchibazaar.lk/fullchain.pem"
-            
-            # Ensure certbot is installed
-            if ! command -v certbot >/dev/null 2>&1; then
-            echo "📥 Installing Certbot..."
-            apt update && apt install certbot -y
-            fi
-            
-            # Generate SSL certificate for backend domain if missing
-            if [ ! -f "$CERT1" ]; then
-            echo "🔧 Generating cert for api.kochchibazaar.lk..."
-            certbot certonly --standalone -d api.kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
-            else
-            echo "✅ Cert for api.kochchibazaar.lk already exists."
-            fi
-            
-            # Generate SSL certificate for frontend domain if missing
-            if [ ! -f "$CERT2" ]; then
-            echo "🔧 Generating cert for kochchibazaar.lk..."
-            certbot certonly --standalone -d kochchibazaar.lk --non-interactive --agree-tos -m premathilakacp@gmail.com
-            else
-            echo "✅ Cert for kochchibazaar.lk already exists."
-            fi
-            docker volume create certbot-etc
-            docker volume create certbot-webroot
+            echo "🔧 Prepare volumes for Certbot..."
+            docker volume create certbot-etc || true
+            docker volume create certbot-webroot || true
 
-            echo "🔧 Starting with HTTP config to enable Certbot..."
+            echo "🔧 Deploy HTTP-only nginx for Certbot challenge..."
             cp nginx-temp.conf nginx.conf
             docker-compose up -d nginx
 
-            echo "🔐 Running Certbot to obtain SSL certs..."
-            docker run --rm -v certbot-etc:/etc/letsencrypt -v certbot-webroot:/var/lib/letsencrypt -p 80:80 certbot/certbot certonly --webroot --webroot-path=/var/lib/letsencrypt -d kochchibazaar.lk -d www.kochchibazaar.lk -d api.kochchibazaar.lk --agree-tos --email your-email@example.com --no-eff-email --force-renewal
+            echo "🕒 Waiting for nginx to be ready..."
+            sleep 5
 
-            echo "📝 Switching to HTTPS config..."
+            echo "🔐 Run Certbot in Docker for SSL certificates..."
+            docker run --rm \
+              -v certbot-etc:/etc/letsencrypt \
+              -v certbot-webroot:/var/lib/letsencrypt \
+              -p 80:80 \
+              certbot/certbot certonly \
+              --webroot --webroot-path=/var/lib/letsencrypt \
+              -d kochchibazaar.lk -d www.kochchibazaar.lk -d api.kochchibazaar.lk \
+              --agree-tos --email premathilakacp@gmail.com --no-eff-email --force-renewal
+
+            echo "📝 Switch nginx to HTTPS config..."
+            docker-compose down
             cp nginx-ssl.conf nginx.conf
 
-            docker start nginx || true
+            echo "🚀 Start all containers with HTTPS..."
+            docker-compose up -d backend frontend nginx
 
-            echo "🔧 Creating certbot volume if not exists..."
-            docker volume create certbot-etc || true
-
-            echo "🚀 Starting containers..."
-            docker-compose up -d backend frontend nginx certbot
-
-            echo "✅ Deployment completed successfully."
+            echo "✅ Deployment with SSL complete."
