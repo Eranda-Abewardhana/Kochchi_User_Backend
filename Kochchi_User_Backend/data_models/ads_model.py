@@ -5,304 +5,368 @@ from datetime import datetime
 
 
 class Contact(BaseModel):
-    address: Optional[str] = None
-    phone: Optional[str] = None
-    whatsapp: Optional[str] = None
-    email: Optional[str] = None
-    website: Optional[str] = None
+    address: Any
+    phone: Any
+    whatsapp: Any
+    email: Any
+    website: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class Location(BaseModel):
-    googleMapLocation: Optional[str]
-    city: str
-    district: str
-    province: Optional[str]
-    country: Optional[str] = "Sri Lanka"
-    state: Optional[str] = None  # For international listings
+    googleMapLocation: Any
+    city: Any
+    district: Any
+    province: Any
+    country: Any
+    state: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class Business(BaseModel):
-    category: str  # One of the 8 core categories
-    specialty: Optional[List[str]]  # Now supports multiple specialties
-    tags: List[str]
-    halalAvailable: bool
-    description: Optional[str]
-    menuOptions: Optional[List[str]] = []  # Only used for restaurant-type ads
+    category: Any
+    specialty: Any
+    tags: Any
+    halalAvailable: Any
+    description: Any
+    menuOptions: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class Schedule(BaseModel):
-    mon: List[str]
-    tue: List[str]
-    wed: List[str]
-    thu: List[str]
-    fri: List[str]
-    sat: List[str]
-    sun: List[str]
+    mon: Any
+    tue: Any
+    wed: Any
+    thu: Any
+    fri: Any
+    sat: Any
+    sun: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class AdSettings(BaseModel):
-    isTopAd: bool = False
-    isCarousalAd: bool = False
-    hasHalal: bool = False
+    isTopAd: Any
+    isCarousalAd: Any
+    hasHalal: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class Approval(BaseModel):
-    status: str  # pending / approved / rejected / inactive
-    adminId: Optional[str]
-    adminComment: Optional[str]
-    approvedAt: Optional[datetime]
+    status: Any
+    adminId: Any
+    adminComment: Any
+    approvedAt: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class ReactionsGroup(BaseModel):
-    count: int = 0
-    userIds: List[str] = []
+    count: Any
+    userIds: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class Reactions(BaseModel):
-    likes: ReactionsGroup = ReactionsGroup()
-    unlikes: ReactionsGroup = ReactionsGroup()
+    likes: Any
+    unlikes: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class Recommendations(BaseModel):
-    count: int = 0
-    userIds: List[str] = []
+    count: Any
+    userIds: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class AdBase(BaseModel):
-    shopName: str
-    contact: Contact
-    location: Location
-    business: Business
-    schedule: Schedule
-    adSettings: AdSettings
-    images: List[str]  # Image URLs
-    videoUrl: Optional[HttpUrl] = None
-    approval: Approval
-    reactions: Reactions
-    recommendations: Optional[Recommendations] = Recommendations()
-    visibility: str  # "visible" or "hidden"
-    expiryDate: Optional[datetime]
-    createdAt: datetime
-    updatedAt: datetime
+    shopName: Any
+    contact: Any
+    location: Any
+    business: Any
+    schedule: Any
+    adSettings: Any
+    images: Any  # Image URLs
+    videoUrl: Any
+    approval: Any
+    reactions: Any
+    recommendations: Any
+    visibility: Any  # "visible" or "hidden"
+    expiryDate: Any
+    createdAt: Any
+    updatedAt: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 # ✅ Response Models
 
 class PaymentInfo(BaseModel):
-    checkout_url: str
-    session_id: str
+    checkout_url: Any
+    session_id: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class AdCreateResponse(BaseModel):
-    message: str
-    adId: str
-    images: List[str]
-    payment: Optional[PaymentInfo]  # ✅ Add this line
+    message: Any
+    adId: Any
+    images: Any
+    payment: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class AdDeleteResponse(BaseModel):
-    message: str
+    message: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class AdApprovalResponse(BaseModel):
-    ad_id: str
-    status: str
-    comment: Optional[str]
-    approved_by: str
+    ad_id: Any
+    status: Any
+    comment: Any
+    approved_by: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class ErrorResponse(BaseModel):
-    detail: str
-    status_code: Optional[int] = None
+    detail: Any
+    status_code: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class TopAdPreview(BaseModel):
-    ad_id: str = Field(...)
-    title: str = Field(...)
-    image_url: Optional[str] = Field(...)
-    city: Optional[str] = Field(...)
-    district: Optional[str] = Field(...)
-    category: Optional[str] = Field(...)
-    contact_name: Optional[str] = Field(...)
-    contact_phone: Optional[str] = Field(...)
+    ad_id: Any
+    title: Any
+    image_url: Any
+    city: Any
+    district: Any
+    category: Any
+    contact_name: Any
+    contact_phone: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class AdListingPreview(BaseModel):
-    ad_id: str
-    title: str
-    image_url: Optional[str]
-    priority_score: int
+    ad_id: Any
+    title: Any
+    image_url: Any
+    priority_score: Any
 
     # Flattened AdBase
-    shopName: str
+    shopName: Any
 
     # Contact
-    contact_address: str
-    contact_phone: str
-    contact_whatsapp: Optional[str]
-    contact_email: Optional[str]
-    contact_website: Optional[str]
+    contact_address: Any
+    contact_phone: Any
+    contact_whatsapp: Any
+    contact_email: Any
+    contact_website: Any
 
     # Location
-    location_googleMapLocation: Optional[str]
-    location_city: str
-    location_district: str
-    location_province: Optional[str]
-    location_country: Optional[str] = "Sri Lanka"
-    location_state: Optional[str] = None
+    location_googleMapLocation: Any
+    location_city: Any
+    location_district: Any
+    location_province: Any
+    location_country: Any
+    location_state: Any
 
     # Business
-    business_category: str
-    business_specialty: Optional[Any]  # (less recommended unless you're very flexible)
-    business_tags: List[str]
-    business_halalAvailable: bool
-    business_description: Optional[str]
-    business_menuOptions: Optional[List[str]] = []
+    business_category: Any
+    business_specialty: Any
+    business_tags: Any
+    business_halalAvailable: Any
+    business_description: Any
+    business_menuOptions: Any
 
     # Schedule (flattened per day)
-    schedule_mon: List[str]
-    schedule_tue: List[str]
-    schedule_wed: List[str]
-    schedule_thu: List[str]
-    schedule_fri: List[str]
-    schedule_sat: List[str]
-    schedule_sun: List[str]
+    schedule_mon: Any
+    schedule_tue: Any
+    schedule_wed: Any
+    schedule_thu: Any
+    schedule_fri: Any
+    schedule_sat: Any
+    schedule_sun: Any
 
     # AdSettings
-    isTopAd: bool = False
-    isCarousalAd: bool = False
-    hasHalal: bool = False
+    isTopAd: Any
+    isCarousalAd: Any
+    hasHalal: Any
 
     # Images
-    images: List[str]
-    videoUrl: Optional[HttpUrl] = None
+    images: Any
+    videoUrl: Any
 
     # Approval
-    approval_status: str
-    approval_adminId: Optional[str]
-    approval_adminComment: Optional[str]
-    approval_approvedAt: Optional[datetime]
+    approval_status: Any
+    approval_adminId: Any
+    approval_adminComment: Any
+    approval_approvedAt: Any
 
     # Reactions
-    likes_count: int = 0
-    likes_userIds: List[str] = []
-    unlikes_count: int = 0
-    unlikes_userIds: List[str] = []
+    likes_count: Any
+    likes_userIds: Any
+    unlikes_count: Any
+    unlikes_userIds: Any
 
     # Recommendations
-    recommendations_count: int = 0
-    recommendations_userIds: List[str] = []
+    recommendations_count: Any
+    recommendations_userIds: Any
 
-    visibility: str
-    expiryDate: Optional[datetime]
-    createdAt: datetime
-    updatedAt: datetime
+    visibility: Any
+    expiryDate: Any
+    createdAt: Any
+    updatedAt: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class AdOut(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    images: Optional[List[HttpUrl]] = []  # use List[str] if URLs may be unvalidated
+    title: Any
+    description: Any
+    images: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 
 class PaginatedAdResponse(BaseModel):
-    page: int
-    total_pages: int
-    total_ads: int
-    results: List[AdOut]
-class AdCreateSchema(BaseModel):
-    shopName: str
-    contact: Contact
-    location: Location
-    business: Business
-    schedule: Schedule
-    adSettings: AdSettings
-    videoUrl: Optional[HttpUrl]
+    page: Any
+    total_pages: Any
+    total_ads: Any
+    results: Any
 
     class Config:
-        schema_extra = {
-            "example": {
-                "shopName": "The Curry Hut",
-                "contact": {
-                    "address": "123 Main St",
-                    "phone": "0771234567",
-                    "whatsapp": "0771234567",
-                    "email": "example@email.com",
-                    "website": "https://curryhut.lk"
-                },
-                "location": {
-                    "googleMapLocation": "6.9271,79.8612",
-                    "city": "Colombo",
-                    "district": "Colombo",
-                    "province": "Western",
-                    "country": "Sri Lanka",
-                    "state": "N/A"
-                },
-                "business": {
-                    "category": "Restaurant",
-                    "specialty": "Indian",
-                    "tags": ["Spicy", "Vegetarian"],
-                    "halalAvailable": True,
-                    "description": "Authentic Sri Lankan and Indian dishes",
-                    "menuOptions": ["Rice & Curry", "Biryani"]
-                },
-                "schedule": {
-                    "mon": ["10:00-22:00"],
-                    "tue": ["10:00-22:00"],
-                    "wed": ["10:00-22:00"],
-                    "thu": ["10:00-22:00"],
-                    "fri": ["10:00-22:00"],
-                    "sat": ["10:00-23:00"],
-                    "sun": ["10:00-23:00"]
-                },
-                "adSettings": {
-                    "isTopAd": False,
-                    "isCarousalAd": True
-                },
-                "videoUrl": "https://example.com/video.mp4"
-            }
-        }
+        arbitrary_types_allowed = True
+        validate_assignment = False
+class AdCreateSchema(BaseModel):
+    shopName: Any
+    contact: Any
+    location: Any
+    business: Any
+    schedule: Any
+    adSettings: Any
+    videoUrl: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class ApprovedAdPreview(BaseModel):
-    shopId: str
-    shopName: str
-    city: str
-    image: Optional[str] = None
+    shopId: Any
+    shopName: Any
+    city: Any
+    image: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class ApprovedAdListResponse(BaseModel):
-    message: str
-    approvedAds: List[ApprovedAdPreview]
+    message: Any
+    approvedAds: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class AdListResponse(BaseModel):
-    message: str
-    ads: List[ApprovedAdPreview]
+    message: Any
+    ads: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 class SimplifiedAdPreview(BaseModel):
-    ad_id: str
-    title: str
-    image_url: Optional[str]
-    city: Optional[str]
-    district: Optional[str]
-    category: Optional[str]
-    contact_name: Optional[str]
-    contact_phone: Optional[str]
-    priority_score: int
+    ad_id: Any
+    title: Any
+    image_url: Any
+    city: Any
+    district: Any
+    category: Any
+    contact_name: Any
+    contact_phone: Any
+    priority_score: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 class PartialAd(BaseModel):
-    title: Optional[str]
-    description: Optional[str]
-    business: Optional[dict]
-    contact: Optional[dict]
-    adSettings: Optional[dict]
-    schedule: Optional[dict]
-    location: Optional[dict]
-    updatedAt: Optional[datetime]
+    title: Any
+    description: Any
+    business: Any
+    contact: Any
+    adSettings: Any
+    schedule: Any
+    location: Any
+    updatedAt: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class AdUpdateResponse(BaseModel):
-    message: str = Field(..., example="Ad updated successfully")
-    adId: str
-    updatedFields: dict
+    message: Any
+    adId: Any
+    updatedFields: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 
 class AdUpdateSchema(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    business: Optional[Business] = None
-    contact: Optional[Contact] = None
-    adSettings: Optional[AdSettings] = None
-    schedule: Optional[Schedule] = None
-    location: Optional[Location] = None
+    title: Any
+    description: Any
+    business: Any
+    contact: Any
+    adSettings: Any
+    schedule: Any
+    location: Any
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = False
 

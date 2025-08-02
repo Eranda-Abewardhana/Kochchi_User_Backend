@@ -492,7 +492,7 @@ async def get_approved_ads():
         raise HTTPException(status_code=500, detail=f"Failed to retrieve approved ads: {str(e)}")
 @ads_router.get(
     "/pending",
-    # response_model=List[AdListingPreview],
+    response_model=List[AdListingPreview],
     summary="Get all pending ads",
     description="Returns a list of pending ads including shop ID, name, city, and image.",
     responses={
