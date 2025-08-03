@@ -97,32 +97,29 @@ jobs:
             docker image rm eranda24/kochchi_app_frontend:$IMAGE_TAG || true
             docker system prune -af || true
             
-            echo "🔍 Checking SSL certificates..."
-            if [ ! -f "/etc/letsencrypt/live/kochchibazaar.lk/fullchain.pem" ]; then
-              echo "❗ SSL certificate not found. Generating with Certbot..."
-              docker run --rm \
-                -v /etc/letsencrypt:/etc/letsencrypt \
-                -v /var/lib/letsencrypt:/var/lib/letsencrypt \
-                certbot/certbot certonly --webroot \
-                -w /var/lib/letsencrypt \
-                -d kochchibazaar.lk \
-                -d www.kochchibazaar.lk \
-                -d api.kochchibazaar.lk \
-                --email ${{ secrets.EMAIL_ADDRESS }} \
-                --agree-tos --no-eff-email || {
-                  echo "❌ Failed to generate SSL certificate.";
-                  exit 1;
-              }
-              echo "✅ SSL certificate generated."
-            else
-              echo "✅ SSL certificate already exists."
-            fi
-
+            echo "🔍 Generating SSL certificate for all domains..."
+  
+            docker run --rm \
+            -v /etc/letsencrypt:/etc/letsencrypt \
+            -v /var/lib/letsencrypt:/var/lib/letsencrypt \
+            certbot/certbot certonly --webroot \
+            -w /var/lib/letsencrypt \
+            -d kochchibazaar.lk \
+            -d www.kochchibazaar.lk \
+            -d api.kochchibazaar.lk \
+            --email $EMAIL_ADDRESS \
+            --agree-tos --no-eff-email --force-renewal || {
+            echo "❌ Failed to generate SSL certificate.";
+            exit 1;
+            }
+            
+            echo "✅ Multi-domain SSL certificate generated."
+  
             echo "📦 Pulling latest images..."
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
-
+  
             echo "🚀 Starting containers..."
             IMAGE_TAG="${IMAGE_TAG}" docker-compose up -d backend frontend nginx certbot
-
+  
             echo "✅ Deployment finished."
