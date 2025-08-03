@@ -101,6 +101,6 @@ jobs:
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
 
             echo "🚀 Starting containers..."
-            docker-compose up -d backend frontend nginx certbot
+            IMAGE_TAG="${IMAGE_TAG}" docker-compose up -d backend frontend nginx certbot
 
             echo "✅ Deployment finished."
