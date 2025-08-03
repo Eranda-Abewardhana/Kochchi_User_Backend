@@ -14,7 +14,7 @@ services:
       - internal
 
   frontend:
-    image: eranda24/kochchi_app_frontend:${IMAGE_TAG:-latest}
+    image: eranda24/kochchi_app_frontend:${IMAGE_TAG}
     container_name: frontend
     restart: always
     networks:
