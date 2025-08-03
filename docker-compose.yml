@@ -14,17 +14,14 @@ services:
       - internal
 
   frontend:
-    build:
-      context: ./kochchi-frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_BASE_URL: https://api.kochchibazaar.lk/api
+    image: eranda24/kochchi_app_frontend:${IMAGE_TAG}
     container_name: frontend
     restart: always
     networks:
       - internal
     depends_on:
       - backend
+
 
   nginx:
     image: nginx:latest
