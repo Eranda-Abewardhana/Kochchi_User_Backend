@@ -12,6 +12,16 @@ function Topaddcontainer() {
   const adsPerPage = 8; // Show 8 ads initially, then 4 more each time "See More" is clicked
   const maxAds = 25; // Maximum number of ads to display
 
+  // Function to shuffle array (Fisher-Yates algorithm)
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   useEffect(() => {
     setIsClient(true);
     async function fetchTopAds() {
@@ -23,10 +33,13 @@ function Topaddcontainer() {
         const filtered = Array.isArray(data)
           ? data.filter(ad => ad.isTopAd)
           : (data.ads || []).filter(ad => ad.isTopAd);
-        setTopAds(filtered);
+        
+        // Shuffle the filtered ads
+        const shuffledAds = shuffleArray(filtered);
+        setTopAds(shuffledAds);
         // Set initial displayed ads
-        setDisplayedAds(filtered.slice(0, adsPerPage));
-        setHasMore(filtered.length > adsPerPage && filtered.length <= maxAds);
+        setDisplayedAds(shuffledAds.slice(0, adsPerPage));
+        setHasMore(shuffledAds.length > adsPerPage && shuffledAds.length <= maxAds);
       } catch (error) {
         setTopAds([]);
         setDisplayedAds([]);

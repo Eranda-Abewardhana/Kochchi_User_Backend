@@ -281,6 +281,16 @@ const MainFinal3DCarousel = () => {
   const MAX_ADS = 25;
   const ADS_PER_PAGE = 10;
 
+  // Shuffle function using Fisher-Yates algorithm
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   useEffect(() => {
     const fetchAds = async () => {
       try {
@@ -288,10 +298,11 @@ const MainFinal3DCarousel = () => {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ads/filter`);
         const data = await res.json();
         const filtered = data.filter(ad => ad.isCarousalAd);
-        // Limit to maximum 25 ads
+        // Limit to maximum 25 ads and shuffle them
         const limitedAds = filtered.slice(0, MAX_ADS);
-        setAds(limitedAds);
-        updateDisplayedAds(limitedAds, 1);
+        const shuffledAds = shuffleArray(limitedAds);
+        setAds(shuffledAds);
+        updateDisplayedAds(shuffledAds, 1);
       } catch (err) {
         setError('Failed to load ads.');
       } finally {
@@ -306,9 +317,12 @@ const MainFinal3DCarousel = () => {
     const endIndex = startIndex + ADS_PER_PAGE;
     const pageAds = allAds.slice(startIndex, endIndex);
     
+    // Shuffle the ads for this page
+    const shuffledPageAds = shuffleArray(pageAds);
+    
     // Add "See More" card if there are more ads and we're not on the last page
     const hasMorePages = endIndex < allAds.length;
-    const finalAds = hasMorePages ? [...pageAds, { isSeeMore: true }] : pageAds;
+    const finalAds = hasMorePages ? [...shuffledPageAds, { isSeeMore: true }] : shuffledPageAds;
     
     setDisplayedAds(finalAds);
     setActiveIndex(0); // Reset to first card when page changes

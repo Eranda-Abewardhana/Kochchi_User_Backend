@@ -7,7 +7,8 @@ import { Poppins } from 'next/font/google';
 import { FaGoogle, FaEye, FaEyeSlash } from 'react-icons/fa'; // Import Google and eye icons
 import { motion } from 'framer-motion'; // Import motion
 import { useRouter } from 'next/navigation';
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth, googleProvider } from '../../firebase/config';
 import axios from 'axios';
 import { useAuth } from '../../(components)/AuthContext';
 import Toast from '../../(components)/Toast';
@@ -75,15 +76,24 @@ function LoginPage() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
+  const handleGoogleSignIn = async () => {
     try {
-      // Console log the Google response for testing
-      console.log('Google Login Response:', credentialResponse);
-      console.log('Google ID Token:', credentialResponse.credential);
+      // Sign in with Google using Firebase
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      // Console log the Firebase response for testing
+      console.log('Firebase Google Login Response:', result);
+      console.log('User:', result.user);
+      console.log('User Email:', result.user.email);
+      console.log('User Display Name:', result.user.displayName);
+      
+      // Get the ID token
+      const idToken = await result.user.getIdToken();
+      console.log('Firebase ID Token:', idToken);
       
       // Make API call to your backend
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/google`, {
-        google_id_token: credentialResponse.credential,
+        google_id_token: idToken,
       });
       
       // Console log the API response
@@ -96,18 +106,14 @@ function LoginPage() {
       router.push('/');
     } catch (err) {
       console.error('Google Login Error:', err);
-      console.error('Error Response:', err.response?.data);
-      alert('Login failed: ' + (err.response?.data?.detail || err.message));
+      console.error('Error Code:', err.code);
+      console.error('Error Message:', err.message);
+      alert('Login failed: ' + err.message);
     }
   };
 
-  const handleGoogleError = (error) => {
-    console.error('Google Login Error:', error);
-    alert('Google login failed');
-  };
-
   return (
-    <GoogleOAuthProvider clientId="896094651555-1k4e7ftch3j6rehn3hbi635ut96hib7r.apps.googleusercontent.com">
+    <>
       {showToast && <Toast message="Successfully logged in!" />}
       <div className={`min-h-screen bg-gray-100 flex items-center justify-center p-4 pt-25 ${poppins.className}`}>
         <motion.div
@@ -181,12 +187,18 @@ function LoginPage() {
             </motion.form>
 
             <div className="w-full flex flex-col gap-2 mb-4">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                width="100%"
-                useOneTap
-              />
+              <motion.button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                variants={itemVariants}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+              >
+                <FaGoogle className="text-red-500" size={20} />
+                Sign in with Google
+              </motion.button>
             </div>
 
             <motion.p className="text-center text-gray-600 text-sm" variants={itemVariants}>
@@ -213,7 +225,7 @@ function LoginPage() {
           </motion.div>
         </motion.div>
       </div>
-    </GoogleOAuthProvider>
+    </>
   );
 }
 
