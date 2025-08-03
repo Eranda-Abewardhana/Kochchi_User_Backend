@@ -100,11 +100,11 @@ jobs:
             
             echo "🔧 Starting Nginx temporarily for Certbot..."
             docker-compose up -d nginx
-            sleep 5  # Wait to ensure Nginx is ready
+            sleep 5
+            docker exec nginx nginx -s reload
             
-  
             echo "🔍 Generating SSL certificate for all domains..."
-  
+            
             docker run --rm \
             -v /etc/letsencrypt:/etc/letsencrypt \
             -v /var/lib/letsencrypt:/var/lib/letsencrypt \
@@ -120,6 +120,7 @@ jobs:
             }
             
             echo "✅ Multi-domain SSL certificate generated."
+  
   
             echo "📦 Pulling latest images..."
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
