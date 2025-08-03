@@ -89,7 +89,8 @@ jobs:
             echo "CLOUD_API_SECRET=${{ secrets.CLOUD_API_SECRET }}" >> Kochchi_User_Backend/.env
             echo "CANCEL_URL=${{ secrets.CANCEL_URL }}" >> Kochchi_User_Backend/.env
             echo "SUCCESS_URL=${{ secrets.SUCCESS_URL }}" >> Kochchi_User_Backend/.env
-            EMAIL_ADDRESS=${{ secrets.EMAIL_ADDRESS }} >> Kochchi_User_Backend/.env
+            echo "EMAIL_ADDRESS=${{ secrets.EMAIL_ADDRESS }}" >> Kochchi_User_Backend/.env
+          
             
             echo "🧹 Cleaning up..."
             docker-compose down || true
@@ -97,6 +98,11 @@ jobs:
             docker image rm eranda24/kochchi_app_frontend:$IMAGE_TAG || true
             docker system prune -af || true
             
+            echo "🔧 Starting Nginx temporarily for Certbot..."
+            docker-compose up -d nginx
+            sleep 5  # Wait to ensure Nginx is ready
+            
+  
             echo "🔍 Generating SSL certificate for all domains..."
   
             docker run --rm \
@@ -107,7 +113,7 @@ jobs:
             -d kochchibazaar.lk \
             -d www.kochchibazaar.lk \
             -d api.kochchibazaar.lk \
-            --email $EMAIL_ADDRESS \
+            --email ${{ secrets.EMAIL_ADDRESS }} \
             --agree-tos --no-eff-email --force-renewal || {
             echo "❌ Failed to generate SSL certificate.";
             exit 1;
