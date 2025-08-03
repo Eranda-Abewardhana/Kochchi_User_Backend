@@ -95,7 +95,30 @@ jobs:
             docker image rm eranda24/kochchi_app_backend:$IMAGE_TAG || true
             docker image rm eranda24/kochchi_app_frontend:$IMAGE_TAG || true
             docker system prune -af || true
-
+            
+            echo "🔧 Starting Nginx temporarily for Certbot..."
+            docker-compose up -d nginx
+            sleep 10
+            docker exec nginx nginx -s reload
+            
+            echo "🔍 Generating SSL certificate for all domains..."
+            
+            docker run --rm \
+            -v /etc/letsencrypt:/etc/letsencrypt \
+            -v /var/lib/letsencrypt:/var/lib/letsencrypt \
+            certbot/certbot certonly --webroot \
+            -w /var/lib/letsencrypt \
+            -d kochchibazaar.lk \
+            -d api.kochchibazaar.lk \
+            --email ${{ secrets.EMAIL_ADDRESS }} \
+            --agree-tos --no-eff-email --force-renewal || {
+            echo "❌ Failed to generate SSL certificate.";
+            exit 1;
+            }
+            
+            echo "✅ Multi-domain SSL certificate generated."
+  
+  
             echo "📦 Pulling latest images..."
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
             docker pull eranda24/kochchi_app_frontend:$IMAGE_TAG
