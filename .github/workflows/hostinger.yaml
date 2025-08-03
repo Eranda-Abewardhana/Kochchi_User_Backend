@@ -89,12 +89,34 @@ jobs:
             echo "CLOUD_API_SECRET=${{ secrets.CLOUD_API_SECRET }}" >> Kochchi_User_Backend/.env
             echo "CANCEL_URL=${{ secrets.CANCEL_URL }}" >> Kochchi_User_Backend/.env
             echo "SUCCESS_URL=${{ secrets.SUCCESS_URL }}" >> Kochchi_User_Backend/.env
+            EMAIL_ADDRESS=${{ secrets.EMAIL_ADDRESS }} >> Kochchi_User_Backend/.env
             
             echo "🧹 Cleaning up..."
             docker-compose down || true
             docker image rm eranda24/kochchi_app_backend:$IMAGE_TAG || true
             docker image rm eranda24/kochchi_app_frontend:$IMAGE_TAG || true
             docker system prune -af || true
+            
+            echo "🔍 Checking SSL certificates..."
+            if [ ! -f "/etc/letsencrypt/live/kochchibazaar.lk/fullchain.pem" ]; then
+              echo "❗ SSL certificate not found. Generating with Certbot..."
+              docker run --rm \
+                -v /etc/letsencrypt:/etc/letsencrypt \
+                -v /var/lib/letsencrypt:/var/lib/letsencrypt \
+                certbot/certbot certonly --webroot \
+                -w /var/lib/letsencrypt \
+                -d kochchibazaar.lk \
+                -d www.kochchibazaar.lk \
+                -d api.kochchibazaar.lk \
+                --email ${{ secrets.EMAIL_ADDRESS }} \
+                --agree-tos --no-eff-email || {
+                  echo "❌ Failed to generate SSL certificate.";
+                  exit 1;
+              }
+              echo "✅ SSL certificate generated."
+            else
+              echo "✅ SSL certificate already exists."
+            fi
 
             echo "📦 Pulling latest images..."
             docker pull eranda24/kochchi_app_backend:$IMAGE_TAG
