@@ -111,12 +111,11 @@ jobs:
             certbot/certbot certonly --webroot \
             -w /var/lib/letsencrypt \
             -d kochchibazaar.lk \
+            -d www.kochchibazaar.lk \
             -d api.kochchibazaar.lk \
             --email ${{ secrets.EMAIL_ADDRESS }} \
-            --agree-tos --no-eff-email --force-renewal || {
-            echo "❌ Failed to generate SSL certificate.";
-            exit 1;
-            }
+            --agree-tos --no-eff-email --force-renewal
+            
             
             echo "✅ Multi-domain SSL certificate generated."
   

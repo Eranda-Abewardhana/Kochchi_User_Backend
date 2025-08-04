@@ -32,10 +32,10 @@ services:
       - "443:443"
 
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/lib/letsencrypt:/var/lib/letsencrypt:ro
-      - ./nginx-entrypoint.sh:/docker-entrypoint.d/99-wait-for-cert.sh
+      - ./nginx-entrypoint.sh:/docker-entrypoint.d/99-wait-for-cert.sh:ro
 
     depends_on:
       - certbot
@@ -52,7 +52,7 @@ services:
       certbot renew --webroot -w /var/lib/letsencrypt; done'
     volumes:
       - certbot-etc:/etc/letsencrypt
-      - certbot-webroot:/var/lib/letsencrypt
+      - /var/lib/letsencrypt:/var/lib/letsencrypt  # ✅ host bind mount
     networks:
       - internal
 
