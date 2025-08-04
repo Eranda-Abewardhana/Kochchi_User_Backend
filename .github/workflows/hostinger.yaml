@@ -57,7 +57,6 @@ jobs:
             
             echo "🔄 Cloning fresh copy of the repository..."
 
-          # Check if the folder exists
             if [ -d "/root/Kochchi_User_Backend" ]; then
             echo "🗑️ Deleting existing folder /root/Kochchi_User_Backend..."
             rm -rf /root/Kochchi_User_Backend
@@ -67,8 +66,7 @@ jobs:
             git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
             
             # Navigate into the cloned repository
-            cd /root/Kochchi_User_Backend
-            
+            cd /root/Kochchi_User_Backend            
   
             echo "📝 Creating .env file..."
             echo "IMAGE_TAG=${IMAGE_TAG}" > Kochchi_User_Backend/.env
