@@ -34,7 +34,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - /etc/letsencrypt:/etc/letsencrypt:ro
-      - certbot-webroot:/var/lib/letsencrypt:ro  # ✅ Add this line
+      - /var/lib/letsencrypt:/var/lib/letsencrypt:ro
       - ./nginx-entrypoint.sh:/docker-entrypoint.d/99-wait-for-cert.sh
 
     depends_on:
@@ -57,7 +57,6 @@ services:
       - internal
 
 volumes:
-  certbot-webroot:
   certbot-etc:
     external: true
 
