@@ -170,12 +170,25 @@ async def add_winner(
 # --- Get all competitions ---
 @competition_router.get("/", response_model=list[Competition])
 async def get_all_competitions():
-    competitions = []
-    async for doc in competition_collection.find().sort("createdAt", -1):
-        doc["id"] = str(doc["_id"])
-        del doc["_id"]
-        competitions.append(Competition(**doc))
-    return competitions
+    try:
+        competitions = []
+        async for doc in competition_collection.find().sort("createdAt", -1):
+            # Convert _id and validate fields
+            doc["id"] = str(doc["_id"])
+            doc.pop("_id", None)
+
+            try:
+                competitions.append(Competition(**doc))
+            except Exception as model_err:
+                print(f"⚠️ Skipping invalid competition doc: {doc}")
+                print(f"❌ Model validation error: {model_err}")
+                continue
+
+        return competitions
+
+    except Exception as e:
+        print(f"❌ Failed to fetch competitions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch competitions")
 
 
 # --- Mark competition as completed ---

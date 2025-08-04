@@ -118,17 +118,33 @@ async def get_all_dansal():
     async for d in dansal_collection.find().sort("createdAt", -1):
         d["id"] = str(d["_id"])
         del d["_id"]
-        dansals.append(DansalEntry(**d))
+
+        # Ensure nested fields exist
+        d.setdefault("organizer", {})
+        d["organizer"].setdefault("name", "")
+        d["organizer"].setdefault("phone", "")
+        d["organizer"].setdefault("whatsapp", "")
+
+        d.setdefault("location", {})
+        d["location"].setdefault("city", "")
+        d["location"].setdefault("district", "")
+
+        try:
+            dansals.append(DansalEntry(**d))
+        except Exception as e:
+            print("Skipping invalid dansal:", e)
+
     return dansals
 
-# @dansal_router.get("/my", response_model=List[DansalEntry], summary="Get my Dansal events", description="Returns all Dansal events created by the authorized user.")
-# async def get_my_dansal(current_user: dict = Depends(get_current_user)):
-#     user_id = current_user.get("user_id")
-#     all_dansal = await dansal_collection.find({"userId": user_id}).to_list(length=None)
-#     for d in all_dansal:
-#         d["id"] = str(d["_id"])
-#         d.pop("_id", None)
-#     return [DansalEntry(**d) for d in all_dansal]
+
+@dansal_router.get("/my", response_model=List[DansalEntry], summary="Get my Dansal events", description="Returns all Dansal events created by the authorized user.")
+async def get_my_dansal(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("user_id")
+    all_dansal = await dansal_collection.find({"userId": user_id}).to_list(length=None)
+    for d in all_dansal:
+        d["id"] = str(d["_id"])
+        d.pop("_id", None)
+    return [DansalEntry(**d) for d in all_dansal]
 
 @dansal_router.delete("/delete/{dansal_id}", response_model=dict, summary="Delete a Dansal event", description="Delete a Dansal event by ID. Any authenticated user can delete.")
 async def delete_dansal(dansal_id: str, current_user: dict = Depends(get_current_user)):

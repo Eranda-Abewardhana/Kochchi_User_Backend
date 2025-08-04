@@ -5,11 +5,11 @@ from datetime import datetime
 
 
 class Contact(BaseModel):
-    address: str
-    phone: str
-    whatsapp: Optional[str]
-    email: EmailStr
-    website: Optional[HttpUrl]
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    whatsapp: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
 
 
 class Location(BaseModel):
@@ -23,7 +23,7 @@ class Location(BaseModel):
 
 class Business(BaseModel):
     category: str  # One of the 8 core categories
-    specialty: Optional[str]
+    specialty: Optional[List[str]]  # Now supports multiple specialties
     tags: List[str]
     halalAvailable: bool
     description: Optional[str]
@@ -104,7 +104,10 @@ class AdDeleteResponse(BaseModel):
 
 
 class AdApprovalResponse(BaseModel):
-    message: str
+    ad_id: str
+    status: str
+    comment: Optional[str]
+    approved_by: str
 
 
 class ErrorResponse(BaseModel):
@@ -255,8 +258,6 @@ class AdCreateSchema(BaseModel):
                 "videoUrl": "https://example.com/video.mp4"
             }
         }
-from pydantic import BaseModel
-from typing import List, Optional
 
 class ApprovedAdPreview(BaseModel):
     shopId: str
@@ -267,3 +268,41 @@ class ApprovedAdPreview(BaseModel):
 class ApprovedAdListResponse(BaseModel):
     message: str
     approvedAds: List[ApprovedAdPreview]
+
+class AdListResponse(BaseModel):
+    message: str
+    ads: List[ApprovedAdPreview]
+class SimplifiedAdPreview(BaseModel):
+    ad_id: str
+    title: str
+    image_url: Optional[str]
+    city: Optional[str]
+    district: Optional[str]
+    category: Optional[str]
+    contact_name: Optional[str]
+    contact_phone: Optional[str]
+    priority_score: int
+class PartialAd(BaseModel):
+    title: Optional[str]
+    description: Optional[str]
+    business: Optional[dict]
+    contact: Optional[dict]
+    adSettings: Optional[dict]
+    schedule: Optional[dict]
+    location: Optional[dict]
+    updatedAt: Optional[datetime]
+
+class AdUpdateResponse(BaseModel):
+    message: str = Field(..., example="Ad updated successfully")
+    adId: str
+    updatedFields: dict
+
+class AdUpdateSchema(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    business: Optional[Business] = None
+    contact: Optional[Contact] = None
+    adSettings: Optional[AdSettings] = None
+    schedule: Optional[Schedule] = None
+    location: Optional[Location] = None
+

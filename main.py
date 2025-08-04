@@ -74,7 +74,9 @@ origins = [
 app.add_middleware(
     CORSMiddleware,       # Allow specific origins
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=["*",
+                   "https://kochchi-frontend.vercel.app"
+                   ],
     # Allow cookies to be sent
     allow_methods=["*"],          # Allow all HTTP methods
     allow_headers=["*"],

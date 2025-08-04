@@ -91,3 +91,4 @@ class UserLastLoginResponse(BaseModel):
     last_name: str
     role: str
     last_login: Optional[datetime]
+    phone_number: Optional[str]
