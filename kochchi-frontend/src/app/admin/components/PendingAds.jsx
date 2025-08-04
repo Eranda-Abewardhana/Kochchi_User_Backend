@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaHourglassHalf, FaCheck, FaTimes, FaEye, FaSpinner } from 'react-icons/fa';
+import { FaHourglassHalf, FaCheck, FaTimes, FaEye, FaSpinner, FaBell } from 'react-icons/fa';
 import AdMiniCard from '../../(components)/AdMiniCard';
 import AdvertisementCard from '../../(components)/AdvertisementCard';
 
@@ -13,6 +13,18 @@ function PendingAds() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [approveComment, setApproveComment] = useState('');
   const [approvingAdId, setApprovingAdId] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+
+  // Auto-hide notification after 5 seconds
+  useEffect(() => {
+    if (notification.show) {
+      const timer = setTimeout(() => {
+        setNotification({ show: false, message: '', type: '' });
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [notification.show]);
 
   // Fetch pending ads from API
   const fetchPendingAds = async () => {
@@ -74,18 +86,29 @@ function PendingAds() {
       }
 
       // Remove the ad from pending list
-      setPendingAds(prev => prev.filter(ad => ad.id !== approvingAdId));
+      setPendingAds(prev => prev.filter(ad => ad._id !== approvingAdId));
       
       // Close modal and reset
       setShowApproveModal(false);
       setApprovingAdId(null);
       setApproveComment('');
       
+      // Show success notification
+      setNotification({
+        show: true,
+        message: 'Advertisement approved successfully!',
+        type: 'success'
+      });
+      
       console.log('Ad approved successfully');
       
     } catch (err) {
       console.error('Error approving ad:', err);
-      alert('Failed to approve ad. Please try again.');
+      setNotification({
+        show: true,
+        message: 'Failed to approve advertisement. Please try again.',
+        type: 'error'
+      });
     } finally {
       setActionLoading(false);
     }
@@ -97,16 +120,19 @@ function PendingAds() {
       setActionLoading(true);
       
       let requestBody = '';
+      let endpoint = '';
       
       if (action === 'approve') {
-        // For approval, send status=approved and comment
+        // For approval, use the correct endpoint and send status=approved and comment
+        endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/ads/${adId}/approve`;
         requestBody = `status=approved&comment=Ad approved by admin`;
       } else if (action === 'reject') {
-        // For rejection, send status=rejected and comment
+        // For rejection, use the correct endpoint and send status=rejected and comment
+        endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/ads/${adId}/reject`;
         requestBody = `status=rejected&comment=Ad rejected by admin`;
       }
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ads/${adId}/${action}`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'accept': 'application/json',
@@ -121,14 +147,25 @@ function PendingAds() {
       }
 
       // Remove the ad from pending list
-      setPendingAds(prev => prev.filter(ad => ad.id !== adId));
+      setPendingAds(prev => prev.filter(ad => ad._id !== adId));
       
-      // Show success message (you can implement a toast notification here)
+      // Show success notification
+      const actionText = action === 'approve' ? 'approved' : 'rejected';
+      setNotification({
+        show: true,
+        message: `Advertisement ${actionText} successfully!`,
+        type: 'success'
+      });
+      
       console.log(`Ad ${action}ed successfully`);
       
     } catch (err) {
       console.error(`Error ${action}ing ad:`, err);
-      alert(`Failed to ${action} ad. Please try again.`);
+      setNotification({
+        show: true,
+        message: `Failed to ${action} advertisement. Please try again.`,
+        type: 'error'
+      });
     } finally {
       setActionLoading(false);
     }
@@ -201,13 +238,14 @@ function PendingAds() {
       {pendingAds.length === 0 ? (
         <div className="text-center py-16">
           <FaHourglassHalf className="text-6xl text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No Pending Ads</h3>
-          <p className="text-gray-500">All advertisements have been reviewed.</p>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">No Pending Advertisements</h3>
+          <p className="text-gray-500">There are currently no advertisements waiting for approval.</p>
+          <p className="text-gray-400 text-sm mt-2">All submitted advertisements have been reviewed and processed.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pendingAds.map((ad) => (
-            <div key={ad.id || ad.ad_id} className="relative group">
+            <div key={ad._id} className="relative group">
               {/* Action buttons overlay */}
               <div className="absolute top-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                <div className="flex gap-2">
@@ -219,7 +257,7 @@ function PendingAds() {
                    <FaEye className="text-sm" />
                  </button>
                  <button
-                   onClick={() => handleAdAction(ad.id || ad.ad_id, 'approve')}
+                   onClick={() => handleAdAction(ad._id, 'approve')}
                    disabled={actionLoading}
                    className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-full shadow-lg transition-colors disabled:opacity-50"
                    title="Approve"
@@ -227,7 +265,7 @@ function PendingAds() {
                    <FaCheck className="text-sm" />
                  </button>
                  <button
-                   onClick={() => handleAdAction(ad.id || ad.ad_id, 'reject')}
+                   onClick={() => handleAdAction(ad._id, 'reject')}
                    disabled={actionLoading}
                    className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-full shadow-lg transition-colors disabled:opacity-50"
                    title="Reject"
@@ -261,7 +299,7 @@ function PendingAds() {
           <div className="fixed top-6 left-6 z-60 flex gap-3">
             <button
               onClick={() => {
-                handleAdAction(selectedAd.id || selectedAd.ad_id, 'reject');
+                handleAdAction(selectedAd._id, 'reject');
                 handleCloseAdDetails();
               }}
               disabled={actionLoading}
@@ -272,7 +310,7 @@ function PendingAds() {
             </button>
             <button
               onClick={() => {
-                handleApproveClick(selectedAd.id || selectedAd.ad_id);
+                handleApproveClick(selectedAd._id);
                 handleCloseAdDetails();
               }}
               disabled={actionLoading}
@@ -345,6 +383,28 @@ function PendingAds() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification */}
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-80 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-500 text-white' 
+            : 'bg-red-500 text-white'
+        }`}>
+          <div className="flex items-center gap-3">
+            <FaBell className="text-lg" />
+            <div>
+              <p className="font-medium">{notification.message}</p>
+            </div>
+            <button
+              onClick={() => setNotification({ show: false, message: '', type: '' })}
+              className="ml-4 text-white hover:text-gray-200 text-xl"
+            >
+              ×
+            </button>
           </div>
         </div>
       )}
