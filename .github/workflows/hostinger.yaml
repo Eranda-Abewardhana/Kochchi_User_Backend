@@ -54,17 +54,21 @@ jobs:
               curl -SL https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
               chmod +x /usr/local/bin/docker-compose
             fi
+            
+            echo "🔄 Cloning fresh copy of the repository..."
 
-            echo "🔄 Cloning or updating the repository..."
-            if [ ! -d "/root/Kochchi_User_Backend" ]; then
+          # Check if the folder exists
+            if [ -d "/root/Kochchi_User_Backend" ]; then
+            echo "🗑️ Deleting existing folder /root/Kochchi_User_Backend..."
+            rm -rf /root/Kochchi_User_Backend
+            fi
+            
+            # Clone the repository again
             git clone https://github.com/Eranda-Abewardhana/Kochchi_User_Backend.git /root/Kochchi_User_Backend
-            else
+            
+            # Navigate into the cloned repository
             cd /root/Kochchi_User_Backend
-            git fetch origin
-            git checkout main
-            git pull origin main  
-            fi            
-            cd /root/Kochchi_User_Backend
+            
   
             echo "📝 Creating .env file..."
             echo "IMAGE_TAG=${IMAGE_TAG}" > Kochchi_User_Backend/.env
@@ -90,13 +94,25 @@ jobs:
             echo "CANCEL_URL=${{ secrets.CANCEL_URL }}" >> Kochchi_User_Backend/.env
             echo "SUCCESS_URL=${{ secrets.SUCCESS_URL }}" >> Kochchi_User_Backend/.env
             echo "EMAIL_ADDRESS=${{ secrets.EMAIL_ADDRESS }}" >> Kochchi_User_Backend/.env
+            echo "EMAIL_ADDRESS=${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" >> Kochchi_User_Backend/.env
           
             
-            echo "🧹 Cleaning up..."
-            docker-compose down || true
-            docker image rm eranda24/kochchi_app_backend:$IMAGE_TAG || true
-            docker image rm eranda24/kochchi_app_frontend:$IMAGE_TAG || true
-            docker system prune -af || true
+            echo "🧹 Removing all Docker containers and images..."
+            
+            # Stop and remove all containers
+            docker container stop $(docker container ls -aq) || true
+            docker container rm $(docker container ls -aq) || true
+            
+            # Remove all Docker images
+            docker image rm $(docker image ls -aq) || true
+            
+            # Optional: Remove all volumes and networks
+            docker volume rm $(docker volume ls -q) || true
+            docker network rm $(docker network ls -q) || true
+            
+            # Full system prune as a fallback
+            docker system prune -af --volumes || true
+
             
             echo "🔧 Starting Nginx temporarily for Certbot..."
             docker-compose up -d nginx
