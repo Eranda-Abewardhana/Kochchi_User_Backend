@@ -3,6 +3,8 @@ import firebase_admin
 from firebase_admin import credentials, auth
 from fastapi import HTTPException, status
 from typing import Optional, Dict, Any
+import jwt
+import json
 
 class FirebaseService:
     def __init__(self):
@@ -38,9 +40,23 @@ class FirebaseService:
         except Exception as e:
             raise Exception(f"Failed to initialize Firebase: {str(e)}")
     
+    def _decode_firebase_token(self, id_token: str) -> Dict[str, Any]:
+        """
+        Decode Firebase ID token without verification
+        """
+        try:
+            # Decode the JWT token without verification
+            decoded_token = jwt.decode(id_token, options={"verify_signature": False})
+            return decoded_token
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Failed to decode Firebase token: {str(e)}"
+            )
+    
     async def verify_firebase_token(self, id_token: str) -> Dict[str, Any]:
         """
-        Verify Firebase ID token and return user information
+        Decode Firebase ID token and return user information (without verification)
         
         Args:
             id_token: Firebase ID token from client
@@ -48,16 +64,13 @@ class FirebaseService:
         Returns:
             Dict containing user information from Firebase
         """
-        # Initialize Firebase if not already initialized
-        self._initialize_firebase()
-        
         try:
-            # Verify the ID token
-            decoded_token = auth.verify_id_token(id_token)
+            # Decode the token without verification
+            decoded_token = self._decode_firebase_token(id_token)
             
             # Extract user information
             user_info = {
-                "uid": decoded_token["uid"],
+                "uid": decoded_token.get("user_id") or decoded_token.get("sub", ""),
                 "email": decoded_token.get("email", ""),
                 "email_verified": decoded_token.get("email_verified", False),
                 "name": decoded_token.get("name", ""),
@@ -70,30 +83,18 @@ class FirebaseService:
             
             return user_info
             
-        except auth.ExpiredIdTokenError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Firebase token has expired"
-            )
-        except auth.RevokedIdTokenError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Firebase token has been revoked"
-            )
-        except auth.InvalidIdTokenError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Firebase token"
-            )
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Firebase verification failed: {str(e)}"
+                detail=f"Firebase token processing failed: {str(e)}"
             )
     
     async def get_firebase_user_by_uid(self, uid: str) -> Optional[Dict[str, Any]]:
         """
-        Get Firebase user information by UID
+        Get Firebase user information by UID (without verification)
         
         Args:
             uid: Firebase user UID
@@ -101,24 +102,19 @@ class FirebaseService:
         Returns:
             User information from Firebase or None if not found
         """
-        # Initialize Firebase if not already initialized
-        self._initialize_firebase()
-        
         try:
-            user_record = auth.get_user(uid)
+            # Since we're not verifying with Firebase, return basic info
             return {
-                "uid": user_record.uid,
-                "email": user_record.email,
-                "email_verified": user_record.email_verified,
-                "display_name": user_record.display_name,
-                "photo_url": user_record.photo_url,
-                "phone_number": user_record.phone_number,
-                "disabled": user_record.disabled,
-                "created_at": user_record.user_metadata.creation_timestamp,
-                "last_sign_in": user_record.user_metadata.last_sign_in_timestamp
+                "uid": uid,
+                "email": "",
+                "email_verified": False,
+                "display_name": "",
+                "photo_url": "",
+                "phone_number": "",
+                "disabled": False,
+                "created_at": 0,
+                "last_sign_in": 0
             }
-        except auth.UserNotFoundError:
-            return None
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
