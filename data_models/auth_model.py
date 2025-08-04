@@ -25,6 +25,9 @@ class LoginRequest(BaseModel):
 class GoogleLoginRequest(BaseModel):
     google_id_token: str
 
+class FirebaseLoginRequest(BaseModel):
+    firebase_id_token: str
+
 class CreateAdminRequest(BaseModel):
     username: str
     first_name: str

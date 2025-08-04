@@ -35,6 +35,7 @@ class DansalEntry(BaseModel):
 
     createdAt: datetime = datetime.utcnow()
     updatedAt: datetime = datetime.utcnow()
+    
 class DansalRequestModel(BaseModel):
     title: str  # e.g., "Dansal for Vesak"
     organizer: DansalContact
