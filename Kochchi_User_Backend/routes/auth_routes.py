@@ -3,13 +3,12 @@ from datetime import datetime, timedelta
 from typing import List
 
 from fastapi import APIRouter, HTTPException, status, Depends
-from google.oauth2 import id_token
-from google.auth.transport import requests
 from data_models.auth_model import (
-    TokenResponse, RegisterRequest, LoginRequest, GoogleLoginRequest,
+    TokenResponse, RegisterRequest, LoginRequest, GoogleLoginRequest, FirebaseLoginRequest,
     ErrorResponse, CreateAdminRequest, CreateSuperAdminRequest, ChangePasswordRequest, UserResponse, EmailVerificationRequest,
     ResendVerificationRequest, ForgotPasswordRequest, ResetPasswordRequest, UserLastLoginResponse
 )
+from services.firebase_service import firebase_service
 from services.email_service import email_service
 from utils.auth.auth_utils import generate_verification_token, get_verification_expiry, generate_otp, get_otp_expiry
 from utils.auth.jwt_functions import (
@@ -20,7 +19,6 @@ from databases.mongo import db
 
 auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 users_collection = db["users"]
 
 @auth_router.post("/register", status_code=201)
@@ -186,41 +184,119 @@ async def login_user(credentials: LoginRequest):
         "username": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
     }
 
-# ---------------- Google Login (Regular Users Only) ----------------
-@auth_router.post("/google", response_model=TokenResponse)
-async def google_login(payload: GoogleLoginRequest):
+# ---------------- Firebase Login (Regular Users Only) ----------------
+@auth_router.post("/firebase", response_model=TokenResponse)
+async def firebase_login(payload: FirebaseLoginRequest):
     try:
-        idinfo = id_token.verify_oauth2_token(payload.google_id_token, requests.Request(), GOOGLE_CLIENT_ID)
+        # Verify Firebase ID token
+        firebase_user = await firebase_service.verify_firebase_token(payload.firebase_id_token)
+        
+        user_email = firebase_user["email"]
+        firebase_uid = firebase_user["uid"]
+        
+        # Parse name from Firebase user info
+        name_parts = firebase_user.get("name", "").split(" ", 1)
+        first_name = name_parts[0] if name_parts else ""
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+        
+        profile_pic = firebase_user.get("picture", "")
+        phone_number = firebase_user.get("phone_number", "")
 
-        user_email = idinfo["email"]
-        first_name = idinfo.get("given_name", "")
-        last_name = idinfo.get("family_name", "")
-        profile_pic = idinfo.get("picture", "")
-
+        # Check if user exists in MongoDB
         user = await users_collection.find_one({"email": user_email})
+        
         if not user:
+            # Create new user in MongoDB
             user_data = {
+                "firebase_uid": firebase_uid,
                 "first_name": first_name,
                 "last_name": last_name,
                 "email": user_email,
-                "phone_number": "",
+                "phone_number": phone_number,
                 "profile_pic": profile_pic,
-                "hashed_password": "",
+                "hashed_password": "",  # No password for Firebase users
                 "role": "user",
                 "created_at": datetime.utcnow(),
-                "is_active": True
+                "is_active": True,
+                "is_verified": firebase_user.get("email_verified", False),
+                "auth_provider": "firebase"
             }
             await users_collection.insert_one(user_data)
+            user = user_data
+        else:
+            # Update existing user's Firebase UID and last login
+            await users_collection.update_one(
+                {"_id": user["_id"]},
+                {
+                    "$set": {
+                        "firebase_uid": firebase_uid,
+                        "last_login": datetime.utcnow(),
+                        "profile_pic": profile_pic,
+                        "phone_number": phone_number,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            user["firebase_uid"] = firebase_uid
 
-        token = create_access_token({"sub": user_email})
+        # Create JWT token
+        token = create_access_token({"sub": user_email}, str(user["_id"]))
+
         return {
             "access_token": token,
             "token_type": "bearer",
-            "role": "user"
+            "role": user["role"],
+            "username": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
         }
 
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google ID token")
+    except HTTPException:
+        # Re-raise HTTP exceptions from Firebase service
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Firebase authentication failed: {str(e)}"
+        )
+
+
+# ---------------- Firebase Token Verification ----------------
+@auth_router.post("/firebase/verify")
+async def verify_firebase_token(payload: FirebaseLoginRequest):
+    """Verify Firebase token and return user info without creating/updating user"""
+    try:
+        firebase_user = await firebase_service.verify_firebase_token(payload.firebase_id_token)
+        
+        # Check if user exists in MongoDB
+        user = await users_collection.find_one({"email": firebase_user["email"]})
+        
+        if user:
+            return {
+                "verified": True,
+                "user_exists": True,
+                "firebase_user": firebase_user,
+                "mongo_user": {
+                    "id": str(user["_id"]),
+                    "email": user.get("email"),
+                    "first_name": user.get("first_name"),
+                    "last_name": user.get("last_name"),
+                    "role": user.get("role"),
+                    "is_active": user.get("is_active", True)
+                }
+            }
+        else:
+            return {
+                "verified": True,
+                "user_exists": False,
+                "firebase_user": firebase_user
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Token verification failed: {str(e)}"
+        )
 
 
 # ---------------- Super Admin: Create Admin ----------------
