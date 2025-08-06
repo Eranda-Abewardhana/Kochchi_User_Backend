@@ -940,35 +940,7 @@ function Page() {
   </div>
 </div>
 
-              {/* JSON Preview for Dansal */}
-              <div className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-6">
-                <h2 className="text-lg font-bold mb-2 text-gray-800">Live JSON Preview</h2>
-                <pre className="text-xs sm:text-sm text-gray-700 whitespace-pre-wrap break-all overflow-x-auto max-h-96">
-                  {JSON.stringify({
-                    title: dansalForm.title,
-                    organizer: {
-                      name: dansalForm.organizer.name,
-                      phone: dansalForm.organizer.phone,
-                      whatsapp: dansalForm.organizer.whatsapp,
-                      email: dansalForm.organizer.email,
-                    },
-                    location: {
-                      city: dansalForm.location.city,
-                      district: dansalForm.location.district,
-                      province: 'Central',
-                      lat: '7.2905715',
-                      lon: '80.6337262',
-                    },
-                    foodType: dansalForm.foodType,
-                    date: dansalForm.date,
-                    time: dansalForm.time,
-                    endDateTime: endDateTimeISO,
-                    description: dansalForm.description,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                  }, null, 2)}
-                </pre>
-              </div>
+
               <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" variants={itemVariants}>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">DANSAL NAME*</label>
@@ -1847,13 +1819,7 @@ function Page() {
             )}
           </form>
 
-          {/* JSON Preview Section */}
-          <div className="mt-10 bg-gray-50 border border-gray-200 rounded-xl p-6">
-            <h2 className="text-lg font-bold mb-2 text-gray-800">Live JSON Preview</h2>
-            <pre className="text-xs sm:text-sm text-gray-700 whitespace-pre-wrap break-all overflow-x-auto max-h-96">
-              {JSON.stringify(adData, null, 2)}
-            </pre>
-          </div>
+
         </motion.div>
         )}
       </motion.div>
