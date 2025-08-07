@@ -204,7 +204,7 @@ async def filter_ads(
         })
 
     if lat is not None and lng is not None:
-        results.sort(key=lambda x: -x.priority_score)
+        results.sort(key=lambda x: -x['priority_score'])
 
     return results
 
