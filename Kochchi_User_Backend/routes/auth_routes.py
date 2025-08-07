@@ -188,7 +188,7 @@ async def login_user(credentials: LoginRequest):
 @auth_router.post("/firebase", response_model=TokenResponse)
 async def firebase_login(payload: FirebaseLoginRequest):
     try:
-        # Verify Firebase ID token
+        # Verify Firebase ID token (now just decodes without verification)
         firebase_user = await firebase_service.verify_firebase_token(payload.firebase_id_token)
         
         user_email = firebase_user["email"]

@@ -409,41 +409,7 @@ const MainFinal3DCarousel = () => {
         ))}
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4 mt-6">
-          <button 
-            onClick={goToPrevPage}
-            disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-              currentPage === 1 
-                ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            Previous Page
-          </button>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-white font-medium">Page</span>
-            <span className="bg-blue-600 text-white px-3 py-1 rounded-lg font-bold">
-              {currentPage} of {totalPages}
-            </span>
-          </div>
-          
-          <button 
-            onClick={goToNextPage}
-            disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-              currentPage === totalPages 
-                ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            Next Page
-          </button>
-        </div>
-      )}
+
 
       {selectedAd && (
         <AdvertisementCard ad={selectedAd} onClose={() => setSelectedAd(null)} />
