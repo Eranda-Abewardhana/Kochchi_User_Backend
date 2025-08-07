@@ -37,7 +37,7 @@ from fastapi.security import OAuth2PasswordBearer
 from utils.auth.jwt_functions import decode_token, get_admin_or_super, get_current_user
 from datetime import timedelta
 from utils.examples.ads import example_json, ads_description
-
+from bson import ObjectId
 # Convert all HttpUrl, datetime, etc. to JSON-serializable values
 def convert_to_serializable(obj):
     if isinstance(obj, (datetime,)):
@@ -651,7 +651,26 @@ async def get_my_ads(current_user: dict = Depends(get_current_user)):
 
     return result
 
-@ads_router.get("/top-full-ads", response_model=PaginatedAdResponse)
+
+def convert_object_ids(doc):
+    if isinstance(doc, list):
+        return [convert_object_ids(item) for item in doc]
+    elif isinstance(doc, dict):
+        new_doc = {}
+        for k, v in doc.items():
+            if isinstance(v, ObjectId):
+                new_doc[k] = str(v)
+            elif isinstance(v, (dict, list)):
+                new_doc[k] = convert_object_ids(v)
+            else:
+                new_doc[k] = v
+        return new_doc
+    else:
+        return doc
+
+
+
+@ads_router.get("/top-full-ads")
 async def get_full_top_ads(
     page: int = Query(1, ge=1)
 ):
@@ -681,8 +700,8 @@ async def get_full_top_ads(
     # 🔁 Format each ad
     results = []
     for ad in page_ads:
-        ad["ad_id"] = str(ad["_id"])  # Alias for model compatibility
-        results.append(AdOut(**ad))
+        ad["ad_id"] = str(ad["_id"])
+        results.append(convert_object_ids(ad))
 
     return {
         "page": page,
