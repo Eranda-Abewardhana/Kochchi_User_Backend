@@ -94,7 +94,7 @@ async def filter_ads(
     }
 
     if category and category.lower() != "all categories":
-        query["business.category"] = {"$ne": category}
+        query["business.category"] = {"$regex": category, "$options": "i"}
     if specialty:
         query["business.specialty"] = specialty
     if city:
