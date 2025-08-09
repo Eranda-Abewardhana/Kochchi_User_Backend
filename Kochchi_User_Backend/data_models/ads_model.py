@@ -358,13 +358,13 @@ class AdUpdateResponse(BaseModel):
         validate_assignment = False
 
 class AdUpdateSchema(BaseModel):
-    title: Any
-    description: Any
-    business: Any
-    contact: Any
-    adSettings: Any
-    schedule: Any
-    location: Any
+    title: Optional[Any] = None
+    description: Optional[Any] = None
+    business: Optional[Any] = None
+    contact: Optional[Any] = None
+    adSettings: Optional[Any] = None
+    schedule: Optional[Any] = None
+    location: Optional[Any] = None
 
     class Config:
         arbitrary_types_allowed = True

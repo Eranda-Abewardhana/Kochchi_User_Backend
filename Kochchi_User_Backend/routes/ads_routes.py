@@ -999,8 +999,12 @@ async def update_ad_details(
     # Only allow editable fields
     editable_fields = {"business", "contact", "adSettings", "schedule", "location", "title", "description"}
 
-    # Get incoming fields
-    incoming_updates = update_data.dict(exclude_unset=True)
+    # get only sent fields
+    try:
+        incoming_updates = update_data.dict(exclude_unset=True)  # Pydantic v1
+    except AttributeError:
+        incoming_updates = update_data.model_dump(exclude_unset=True)  # Pydantic v2
+
     updates = {}
 
     for key, value in incoming_updates.items():
