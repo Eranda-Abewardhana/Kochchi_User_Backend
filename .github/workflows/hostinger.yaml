@@ -127,9 +127,11 @@ jobs:
             -d kochchibazaar.lk \
             -d www.kochchibazaar.lk \
             -d api.kochchibazaar.lk \
-            --email ${{ secrets.EMAIL_ADDRESS }} \
-            --agree-tos --no-eff-email --force-renewal
-            
+            --email "${EMAIL_ADDRESS}" \
+            --agree-tos --no-eff-email \
+            --non-interactive
+          
+                      
             
             echo "✅ Multi-domain SSL certificate generated."
   
