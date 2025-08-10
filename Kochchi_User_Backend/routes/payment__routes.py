@@ -130,4 +130,4 @@ def create_stripe_checkout_session(data: dict) -> dict:
 
     except Exception as e:
         print(f"Stripe error during session creation: {e}")
-        raise HTTPException(status_code=500, detail="Stripe session creation failed")
+        raise HTTPException(status_code=500, detail=f"Stripe session creation failed {e}")

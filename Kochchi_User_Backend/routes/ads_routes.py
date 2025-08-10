@@ -359,8 +359,6 @@ async def create_ad(
                 print(f"Cleanup failed for Cloudinary image: {ce}")
         raise HTTPException(status_code=500, detail=f"Creation failed: {str(e)}")
 
-from bson import ObjectId
-
 @ads_router.get("/carousal-ads")
 async def get_carousal_ads():
     cursor = ads_collection.find({
