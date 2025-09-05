@@ -124,6 +124,38 @@ const rupeesToDollars = (amount) => {
   if (!amount || isNaN(amount)) return '$0.00';
   return `$${(amount / 300).toFixed(2)}`;
 };
+const dollersToRupees = (amount) => {
+  if (!amount || isNaN(amount)) return '$0.00';
+  return `${(amount * 300).toFixed(2)}`;
+};
+
+
+
+
+
+// utils/convertToLKR.js
+export async function convertToLKR(amount) {
+  try {
+    // Fetch exchange rates
+    const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    const data = await res.json();
+
+    // Get LKR rate
+    const lkrRate = data.rates.LKR;
+
+    // Return converted amount
+    return amount * lkrRate;
+  } catch (error) {
+    console.error("Error fetching exchange rates:", error);
+    return null;
+  }
+}
+
+
+
+
+
+
 
 function Page() {
   const [formData, setFormData] = useState({
@@ -1614,8 +1646,8 @@ function Page() {
                         <div>
                           <h4 className="font-semibold text-gray-900">Carousel Add</h4>
                           <p className="text-2xl font-bold text-amber-600">
-                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? pricing.carousal : pricing.carousal}
-                            <span className="ml-2 text-base text-gray-500">({rupeesToDollars(pricing.carousal)})</span>
+                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollersToRupees(pricing.carousal) : dollersToRupees(pricing.carousal)}
+                            <span className="ml-2 text-base text-gray-500">(${pricing.carousal})</span>
                           </p>
                         </div>
                       </div>
@@ -1666,8 +1698,8 @@ function Page() {
                         <div>
                           <h4 className="font-semibold text-gray-900">Top Add</h4>
                           <p className="text-2xl font-bold text-slate-700">
-                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? pricing.top : pricing.top}
-                            <span className="ml-2 text-base text-gray-500">({rupeesToDollars(pricing.top)})</span>
+                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollersToRupees(pricing.top) : dollersToRupees(pricing.top)}
+                            <span className="ml-2 text-base text-gray-500">(${(pricing.top)})</span>
                           </p>
                         </div>
                       </div>
@@ -1716,9 +1748,9 @@ function Page() {
                 <p className={`text-3xl font-bold ${
                   formData.category === 'Dansal' ? 'text-emerald-700' : 'text-slate-800'
                 }`}>
-                  {formData.category === 'Dansal' ? 'FREE' : `Rs. ${totalPrice}`}
+                  {formData.category === 'Dansal' ? 'FREE' : `Rs. ${dollersToRupees(totalPrice)}`}
                   {formData.category !== 'Dansal' && (
-                    <span className="ml-2 text-lg text-gray-500">({rupeesToDollars(totalPrice)})</span>
+                    <span className="ml-2 text-lg text-gray-500">(${(totalPrice)})</span>
                   )}
                 </p>
               </div>
