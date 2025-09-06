@@ -36,7 +36,7 @@ export default function Home() {
     { name: "Restaurant Promotions", path: "/adds/retaurantpromotions" , img : "/assets/cards/promotions.jpg" },
     { name: "Day Outing Packages", path: "/adds/dayout" , img : "/assets/cards/dayout.jpg" },
     { name: "Dansal", path: "/adds/dansal" , img : "/assets/cards/dansal.jpg" },
-    { name: "Srilankan World-Wide Restaurants", path: "/adds/worldwide" , img : "/assets/cards/worldwide.webp" }
+    { name: "Srilankan Restaurants Worldwide", path: "/adds/worldwide" , img : "/assets/cards/worldwide.webp" }
   ];
 
   const containerVariants = {
