@@ -119,15 +119,48 @@ const cities = {
   "Vavuniya": ["Vavuniya", "Cheddikulam", "Nedunkeni", "Vavunikulam"]
 };
 
+// Currency conversion utilities with real-time exchange rates
+let cachedExchangeRate = 302; // Fallback rate
+let lastFetchTime = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Function to fetch real-time exchange rate
+const fetchExchangeRate = async () => {
+  try {
+    const now = Date.now();
+    // Use cached rate if it's less than 5 minutes old
+    if (now - lastFetchTime < CACHE_DURATION && cachedExchangeRate !== 302) {
+      return cachedExchangeRate;
+    }
+
+    const response = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    const data = await response.json();
+    
+    if (data && data.rates && data.rates.LKR) {
+      cachedExchangeRate = data.rates.LKR;
+      lastFetchTime = now;
+      console.log('Updated exchange rate: 1 USD =', cachedExchangeRate, 'LKR');
+      return cachedExchangeRate;
+    } else {
+      throw new Error('Invalid response from exchange rate API');
+    }
+  } catch (error) {
+    console.error("Error fetching exchange rates:", error);
+    // Return cached rate or fallback
+    return cachedExchangeRate;
+  }
+};
+
 // Utility functions for currency conversion
 const rupeesToDollars = (amount) => {
   if (!amount || isNaN(amount)) return '$0.00';
-  return `$${(amount / 300).toFixed(2)}`;
+  return `$${(amount / cachedExchangeRate).toFixed(2)}`;
 };
 
 const dollarsToRupees = (amount) => {
   if (!amount || isNaN(amount)) return '0.00';
-  return (amount * 300).toFixed(2);
+  const lkrAmount = (amount * cachedExchangeRate).toFixed(2);
+  return parseFloat(lkrAmount).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 // Currency conversion API function
@@ -230,6 +263,8 @@ function Page() {
   const [dansalError, setDansalError] = useState('');
 
   const [isLoggedIn, setIsLoggedIn] = useState(true); // default true for SSR safety
+  const [exchangeRate, setExchangeRate] = useState(302); // Track current exchange rate
+  const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
 
   const [missingFields, setMissingFields] = useState([]);
   const [showToast, setShowToast] = useState(false);
@@ -239,6 +274,22 @@ function Page() {
     // Check login status on mount
     const token = localStorage.getItem('access_token') || localStorage.getItem('admin_token');
     setIsLoggedIn(!!token);
+
+    // Fetch initial exchange rate
+    const loadExchangeRate = async () => {
+      setExchangeRateLoading(true);
+      try {
+        const rate = await fetchExchangeRate();
+        setExchangeRate(rate);
+        cachedExchangeRate = rate; // Update global cache
+      } catch (error) {
+        console.error('Failed to fetch initial exchange rate:', error);
+      } finally {
+        setExchangeRateLoading(false);
+      }
+    };
+
+    loadExchangeRate();
   }, []);
 
   // Helper for province (auto-fill based on district, or let user type)
@@ -799,7 +850,7 @@ function Page() {
       if (formData.topAdd) basePrice += pricing.top;
     }
     setTotalPrice(basePrice);
-  }, [formData.carouselAdd, formData.topAdd, formData.category, pricing]);
+  }, [formData.carouselAdd, formData.topAdd, formData.category, pricing, exchangeRate]);
 
   // Keep formData.specialties in sync with selectedSpecialties
   useEffect(() => {
@@ -1727,7 +1778,11 @@ function Page() {
                         <div>
                           <h4 className="font-semibold text-gray-900">Carousel Add</h4>
                           <p className="text-2xl font-bold text-amber-600">
-                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollarsToRupees(pricing.carousal) : dollarsToRupees(pricing.carousal)}
+                            {exchangeRateLoading ? (
+                              <span className="animate-pulse">Loading...</span>
+                            ) : (
+                              `Rs. ${dollarsToRupees(pricing.carousal)}`
+                            )}
                             <span className="ml-2 text-base text-gray-500">(${pricing.carousal})</span>
                           </p>
                         </div>
@@ -1779,8 +1834,12 @@ function Page() {
                         <div>
                           <h4 className="font-semibold text-gray-900">Top Add</h4>
                           <p className="text-2xl font-bold text-slate-700">
-                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollarsToRupees(pricing.top) : dollarsToRupees(pricing.top)}
-                            <span className="ml-2 text-base text-gray-500">(${(pricing.top)})</span>
+                            {exchangeRateLoading ? (
+                              <span className="animate-pulse">Loading...</span>
+                            ) : (
+                              `Rs. ${dollarsToRupees(pricing.top)}`
+                            )}
+                            <span className="ml-2 text-base text-gray-500">(${pricing.top})</span>
                           </p>
                         </div>
                       </div>
@@ -1831,9 +1890,15 @@ function Page() {
                 <p className={`text-3xl font-bold ${
                   formData.category === 'Dansal' ? 'text-emerald-700' : 'text-slate-800'
                 }`}>
-                  {formData.category === 'Dansal' ? 'FREE' : `Rs. ${dollarsToRupees(totalPrice)}`}
+                  {formData.category === 'Dansal' ? 'FREE' : 
+                    exchangeRateLoading ? (
+                      <span className="animate-pulse">Loading...</span>
+                    ) : (
+                      `Rs. ${dollarsToRupees(totalPrice)}`
+                    )
+                  }
                   {formData.category !== 'Dansal' && (
-                    <span className="ml-2 text-lg text-gray-500">(${(totalPrice)})</span>
+                    <span className="ml-2 text-lg text-gray-500">(${totalPrice})</span>
                   )}
                 </p>
               </div>
@@ -1846,6 +1911,12 @@ function Page() {
                   ? "Great choice! Your business will stand out from the crowd."
                   : "Add premium features to boost your business visibility."
                 }
+                {formData.category !== 'Dansal' && (
+                  <span className="block text-xs text-gray-500 mt-1">
+                    Exchange rate: 1 USD = {exchangeRate.toFixed(2)} LKR 
+                    {exchangeRateLoading && <span className="animate-pulse"> (updating...)</span>}
+                  </span>
+                )}
               </p>
             </motion.div>
 
