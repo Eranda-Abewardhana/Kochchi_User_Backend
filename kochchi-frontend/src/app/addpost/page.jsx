@@ -1677,42 +1677,7 @@ function Page() {
               </motion.div>
             )}
 
-            {/* Menu Options */}
-            {formData.category !== 'Dansal' && (
-              <motion.div className="space-y-4" variants={itemVariants}>
-                <label className="block text-xs font-medium text-gray-500 mb-1">MENU OPTIONS (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Rice & Curry, Biryani, Kottu (separate with commas)"
-                  className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
-                  value={menuOptions.join(', ')}
-                  onChange={(e) => {
-                    const options = e.target.value.split(',').map(opt => opt.trim()).filter(opt => opt.length > 0);
-                    setMenuOptions(options);
-                  }}
-                />
-                <p className="text-sm text-gray-500">
-                  List your popular menu items separated by commas.
-                </p>
-              </motion.div>
-            )}
 
-            {/* Video URL */}
-            {formData.category !== 'Dansal' && (
-              <motion.div className="space-y-4" variants={itemVariants}>
-                <label className="block text-xs font-medium text-gray-500 mb-1">VIDEO URL (Optional)</label>
-                <input
-                  type="url"
-                  placeholder="https://example.com/your-restaurant-video.mp4"
-                  className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                />
-                <p className="text-sm text-gray-500">
-                  Add a promotional video URL to showcase your business.
-                </p>
-              </motion.div>
-            )}
 
             {/* Specialties Selection (for Restaurants) */}
             {formData.category === 'Restaurant' && (
@@ -1845,22 +1810,7 @@ function Page() {
               </motion.div>
             )}
 
-            {/* Coupon Code */}
-            {formData.category !== 'Dansal' && (
-              <motion.div className="space-y-4" variants={itemVariants}>
-                <label className="block text-xs font-medium text-gray-500 mb-1">COUPON CODE (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="Enter coupon code if you have one"
-                  className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                />
-                <p className="text-sm text-gray-500">
-                  Have a discount coupon? Enter it here to get reduced pricing.
-                </p>
-              </motion.div>
-            )}
+
 
             {/* Total Price */}
             <motion.div 
