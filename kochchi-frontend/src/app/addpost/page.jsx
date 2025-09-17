@@ -216,7 +216,7 @@ function Page() {
   const [dansalForm, setDansalForm] = useState({
     title: '',
     organizer: { name: '', phone: '', whatsapp: '', email: '' },
-    location: { city: '', district: '', province: '', lat: 6.9271, lon: 79.8612 },
+    location: { city: '', district: '', province: '', lat: 7.2905715, lon: 80.6337262 },
     foodType: '',
     date: '',
     time: '',
@@ -282,6 +282,8 @@ function Page() {
       const now = new Date();
       const createdAt = now.toISOString();
       const updatedAt = createdAt;
+      
+      // Parse endDateTime from date and time
       const endDateTimeISO = (dansalForm.date && dansalForm.time)
         ? (() => {
             // Try to parse time like '6:00 PM – 10:00 PM' and use the end time
@@ -299,20 +301,37 @@ function Page() {
             return `${dansalForm.date}T${pad(hours)}:${pad(minutes)}:00`;
           })()
         : '';
+
+      // Helper function to get province for district
+      const getProvinceForDistrict = (district) => {
+        const provinceMap = {
+          "Colombo": "Western", "Gampaha": "Western", "Kalutara": "Western",
+          "Kandy": "Central", "Matale": "Central", "Nuwara Eliya": "Central",
+          "Galle": "Southern", "Matara": "Southern", "Hambantota": "Southern",
+          "Ampara": "Eastern", "Batticaloa": "Eastern", "Trincomalee": "Eastern",
+          "Anuradhapura": "North Central", "Polonnaruwa": "North Central",
+          "Badulla": "Uva", "Monaragala": "Uva",
+          "Jaffna": "Northern", "Kilinochchi": "Northern", "Mannar": "Northern", "Mullaitivu": "Northern", "Vavuniya": "Northern",
+          "Kegalle": "Sabaragamuwa", "Ratnapura": "Sabaragamuwa",
+          "Kurunegala": "North Western", "Puttalam": "North Western"
+        };
+        return provinceMap[district] || 'Central';
+      };
+
       const data = {
         title: dansalForm.title,
         organizer: {
           name: dansalForm.organizer.name,
           phone: dansalForm.organizer.phone,
-          whatsapp: dansalForm.organizer.whatsapp,
-          email: dansalForm.organizer.email,
+          whatsapp: dansalForm.organizer.whatsapp || dansalForm.organizer.phone,
+          email: dansalForm.organizer.email || '',
         },
         location: {
           city: dansalForm.location.city,
           district: dansalForm.location.district,
-          province: 'Central',
-          lat: '7.2905715',
-          lon: '80.6337262',
+          province: getProvinceForDistrict(dansalForm.location.district),
+          lat: dansalForm.location.lat?.toString() || '7.2905715',
+          lon: dansalForm.location.lon?.toString() || '80.6337262',
         },
         foodType: dansalForm.foodType,
         date: dansalForm.date,
@@ -322,36 +341,56 @@ function Page() {
         createdAt,
         updatedAt,
       };
+
+      console.log('Dansal JSON to be sent:', data);
+
       const form = new FormData();
       form.append('data', JSON.stringify(data));
-      dansalForm.images.forEach((img) => {
-        form.append('images', img);
-      });
+      
+      // Add images
+      if (dansalForm.images && dansalForm.images.length > 0) {
+        dansalForm.images.forEach((img) => {
+          form.append('images', img);
+        });
+      }
+
       const token = localStorage.getItem('access_token') || localStorage.getItem('admin_token');
+      
+      if (!token) {
+        throw new Error('Authentication token not found. Please login again.');
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/dansal/create`, {
         method: 'POST',
         headers: {
-          accept: 'application/json',
-          Authorization: `Bearer ${token}`,
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type for FormData
         },
         body: form,
       });
+
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to create dansal');
+        const errorData = await res.json().catch(() => ({ message: 'Unknown error occurred' }));
+        console.error('Dansal API Error Response:', errorData);
+        throw new Error(errorData.message || `HTTP ${res.status}: ${res.statusText}`);
       }
+
       const responseData = await res.json();
+      console.log('Dansal API response:', responseData);
+
       setDansalSuccess('Dansal created successfully! Thank you for your contribution.');
       setTimeout(() => {
         setShowDansalForm(false);
         setDansalForm({
           title: '', organizer: { name: '', phone: '', whatsapp: '', email: '' },
-          location: { city: '', district: '', province: '', lat: 6.9271, lon: 79.8612 },
+          location: { city: '', district: '', province: '', lat: 7.2905715, lon: 80.6337262 },
           foodType: '', date: '', time: '', endDateTime: '', description: '', images: [],
         });
         setDansalImagePreviewUrls([]);
       }, 2000);
     } catch (err) {
+      console.error('Dansal submission error:', err);
       setDansalError(err.message || 'Error posting dansal');
     } finally {
       setDansalLoading(false);
@@ -846,6 +885,13 @@ function Page() {
         form.append('coupon_code', couponCode.trim());
       }
 
+      // Special handling for Dansal category - redirect to dedicated endpoint
+      if (formData.category === 'Dansal') {
+        setError('Please use the "Publish a Dansal" button above to create Dansal listings. Dansal has a separate dedicated form.');
+        setLoading(false);
+        return;
+      }
+
       const token = localStorage.getItem('access_token') || localStorage.getItem('admin_token');
       
       if (!token) {
@@ -870,18 +916,8 @@ function Page() {
       
       const responseData = await res.json();
       console.log('API response:', responseData);
-
-      // Special handling for Dansal: no payment/redirect
-      if (formData.category === 'Dansal') {
-        setSuccess('Dansal ad created successfully! Thank you for your charitable contribution.');
-        // Optionally reset the form after a short delay
-        setTimeout(() => {
-          // window.location.href = '/'; // Uncomment to redirect to home or another page
-        }, 2000);
-        return;
-      }
       
-      // Check if payment is required (for non-Dansal)
+      // Check if payment is required
       if (responseData.payment && responseData.payment.checkout_url) {
         setSuccess('Ad created successfully! Redirecting to payment...');
         // Store ad ID in localStorage for reference
@@ -891,7 +927,7 @@ function Page() {
           window.location.href = responseData.payment.checkout_url;
         }, 1500);
       } else if (responseData.message) {
-        // For free ads (like Dansal) or already paid ads
+        // For free ads or already paid ads
         setSuccess(responseData.message);
         setTimeout(() => {
           // window.location.href = '/success'; // Uncomment if you have a success page
