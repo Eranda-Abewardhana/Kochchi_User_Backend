@@ -758,20 +758,25 @@ function Page() {
 
   const validateForm = () => {
     const missing = [];
+    
+    // Common validation for all categories
+    if (!formData.restaurantName || formData.restaurantName.trim() === '') {
+      missing.push(formData.category === 'Dansal' ? 'Dansal Name' : 
+                   formData.category === 'Sri Lankan Worldwide Restaurant' ? 'Hotel Chain Name' : 
+                   'Restaurant Name');
+    }
+    
     if (formData.category === 'Dansal') {
-      if (!formData.restaurantName) missing.push('Dansal Name');
       if (!formData.district) missing.push('District');
       if (!formData.city) missing.push('City');
       // For dansal, these fields are in dansalForm, not formData, so skip here
     } else if (formData.category === 'Sri Lankan Worldwide Restaurant') {
-      if (!formData.restaurantName) missing.push('Hotel Chain Name');
       if (!formData.country) missing.push('Country');
       if (!formData.state) missing.push('State/Province/District');
       if (!formData.city) missing.push('City');
       // Description is now optional
       if (!formData.images || formData.images.length === 0) missing.push('Images');
     } else {
-      if (!formData.restaurantName) missing.push('Restaurant Name');
       if (!formData.address) missing.push('Address');
       if (!formData.mobileNumber) missing.push('Mobile Number');
       if (!formData.district) missing.push('District');
@@ -806,11 +811,17 @@ function Page() {
       // Ensure required fallbacks are set
       const submissionData = {
         ...adData,
+        shopName: adData.shopName?.trim() || 'Restaurant Listing', // Ensure non-empty name
         contact: {
           ...adData.contact,
           whatsapp: adData.contact.whatsapp || adData.contact.phone, // Use phone as fallback
         }
       };
+
+      // Additional validation for Stripe requirements
+      if (!submissionData.shopName || submissionData.shopName.trim() === '') {
+        throw new Error('Restaurant name is required for payment processing');
+      }
 
       // Log the JSON output for user to see
       console.log('Ad JSON to be sent:', submissionData);
@@ -884,7 +895,19 @@ function Page() {
       
     } catch (err) {
       console.error('Submission error:', err);
-      setError(err.message || 'Error posting ad');
+      
+      // Provide user-friendly error messages for common issues
+      let errorMessage = err.message || 'Error posting ad';
+      
+      if (errorMessage.includes('empty string') && errorMessage.includes('product_data')) {
+        errorMessage = 'Business name is required and cannot be empty. Please enter a valid business name.';
+      } else if (errorMessage.includes('Payment initiation failed')) {
+        errorMessage = 'Payment processing failed. Please check all required fields are filled correctly and try again.';
+      } else if (errorMessage.includes('Stripe session creation failed')) {
+        errorMessage = 'Payment setup failed. Please ensure your business information is complete and try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -1260,7 +1283,17 @@ function Page() {
                       required
                       className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
                       value={formData.restaurantName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, restaurantName: e.target.value }))}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData(prev => ({ ...prev, restaurantName: value }));
+                        // Clear missing field error if user starts typing a valid name
+                        if (value.trim() && missingFields.length > 0) {
+                          setMissingFields(prev => prev.filter(field => 
+                            !['Restaurant Name', 'Dansal Name', 'Hotel Chain Name'].includes(field)
+                          ));
+                        }
+                      }}
+                      placeholder="Enter dansal name"
                     />
                   </div>
                   <div>
@@ -1302,7 +1335,17 @@ function Page() {
                       required
                       className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
                       value={formData.restaurantName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, restaurantName: e.target.value }))}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData(prev => ({ ...prev, restaurantName: value }));
+                        // Clear missing field error if user starts typing a valid name
+                        if (value.trim() && missingFields.length > 0) {
+                          setMissingFields(prev => prev.filter(field => 
+                            !['Restaurant Name', 'Dansal Name', 'Hotel Chain Name'].includes(field)
+                          ));
+                        }
+                      }}
+                      placeholder="Enter hotel chain name"
                     />
                   </div>
                   <div>
@@ -1346,7 +1389,17 @@ function Page() {
                       required
                       className={`w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800${missingFields.includes('Restaurant Name') || missingFields.includes('Dansal Name') || missingFields.includes('Hotel Chain Name') ? ' border-red-500 focus:ring-red-200' : ''}`}
                       value={formData.restaurantName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, restaurantName: e.target.value }))}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData(prev => ({ ...prev, restaurantName: value }));
+                        // Clear missing field error if user starts typing a valid name
+                        if (value.trim() && missingFields.length > 0) {
+                          setMissingFields(prev => prev.filter(field => 
+                            !['Restaurant Name', 'Dansal Name', 'Hotel Chain Name'].includes(field)
+                          ));
+                        }
+                      }}
+                      placeholder="Enter your business name"
                     />
                   </div>
                   <div>
