@@ -125,7 +125,7 @@ const rupeesToDollars = (amount) => {
   return `$${(amount / 300).toFixed(2)}`;
 };
 const dollersToRupees = (amount) => {
-  if (!amount || isNaN(amount)) return '0.00';
+  if (!amount || isNaN(amount)) return '$0.00';
   return `${(amount * 300).toFixed(2)}`;
 };
 
@@ -333,8 +333,7 @@ function Page() {
         form.append('images', img);
       });
       const token = localStorage.getItem('access_token') || localStorage.getItem('admin_token');
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.kochchibazaar.lk';
-      const res = await fetch(`${apiBaseUrl}/api/dansal/create`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/dansal/create`, {
         method: 'POST',
         headers: {
           accept: 'application/json',
@@ -368,8 +367,7 @@ function Page() {
   useEffect(() => {
     const fetchPricing = async () => {
       try {
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.kochchibazaar.lk';
-        const res = await fetch(`${apiBaseUrl}/api/pricing/all`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/pricing/all`);
         const data = await res.json();
         if (data && Array.isArray(data.prices)) {
           // Ignore the last element
@@ -634,21 +632,21 @@ function Page() {
     contact: {
       address: formData.address,
       phone: formData.mobileNumber,
-      whatsapp: formData.whatsapp || formData.mobileNumber, // Use mobile as fallback
+      whatsapp: formData.whatsapp,
       email: formData.email,
       website: formData.website,
     },
     location: {
-      googleMapLocation: formData.googleMapLocation || `${selectedCoords.lat},${selectedCoords.lng}`,
+      googleMapLocation: formData.googleMapLocation,
       city: formData.city,
       district: formData.district,
-      province: getProvinceForDistrict(formData.district) || formData.state || 'N/A',
+      province: formData.state || '',
       country: formData.country || 'Sri Lanka',
       state: formData.state || 'N/A',
     },
     business: {
       category: formData.category,
-      specialty: formData.specialties.length > 0 ? formData.specialties : ["Local Food"],
+      specialty: formData.specialties.length > 0 ? [formData.specialties[0]] : [],
       tags: formData.specialties,
       halalAvailable: formData.halalAvailability === 'Yes',
       description: formData.description,
@@ -758,25 +756,20 @@ function Page() {
 
   const validateForm = () => {
     const missing = [];
-    
-    // Common validation for all categories
-    if (!formData.restaurantName || formData.restaurantName.trim() === '') {
-      missing.push(formData.category === 'Dansal' ? 'Dansal Name' : 
-                   formData.category === 'Sri Lankan Worldwide Restaurant' ? 'Hotel Chain Name' : 
-                   'Restaurant Name');
-    }
-    
     if (formData.category === 'Dansal') {
+      if (!formData.restaurantName) missing.push('Dansal Name');
       if (!formData.district) missing.push('District');
       if (!formData.city) missing.push('City');
       // For dansal, these fields are in dansalForm, not formData, so skip here
     } else if (formData.category === 'Sri Lankan Worldwide Restaurant') {
+      if (!formData.restaurantName) missing.push('Hotel Chain Name');
       if (!formData.country) missing.push('Country');
       if (!formData.state) missing.push('State/Province/District');
       if (!formData.city) missing.push('City');
       // Description is now optional
       if (!formData.images || formData.images.length === 0) missing.push('Images');
     } else {
+      if (!formData.restaurantName) missing.push('Restaurant Name');
       if (!formData.address) missing.push('Address');
       if (!formData.mobileNumber) missing.push('Mobile Number');
       if (!formData.district) missing.push('District');
@@ -784,13 +777,11 @@ function Page() {
       if (!formData.halalAvailability) missing.push('Halal Availability');
       // Description is now optional
       if (!formData.images || formData.images.length === 0) missing.push('Images');
-      // Opening and closing times for all days - Only for non-worldwide restaurants
-      if (formData.category !== 'Sri Lankan Worldwide Restaurant') {
-        ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].forEach(day => {
-          if (!formData.openingTimes[day]) missing.push(`${day.charAt(0).toUpperCase()+day.slice(1)} Opening Time`);
-          if (!formData.closingTimes[day]) missing.push(`${day.charAt(0).toUpperCase()+day.slice(1)} Closing Time`);
-        });
-      }
+      // Opening and closing times for all days
+      ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].forEach(day => {
+        if (!formData.openingTimes[day]) missing.push(`${day.charAt(0).toUpperCase()+day.slice(1)} Opening Time`);
+        if (!formData.closingTimes[day]) missing.push(`${day.charAt(0).toUpperCase()+day.slice(1)} Closing Time`);
+      });
     }
     return missing;
   };
@@ -808,26 +799,11 @@ function Page() {
       return;
     }
     try {
-      // Ensure required fallbacks are set
-      const submissionData = {
-        ...adData,
-        shopName: adData.shopName?.trim() || 'Restaurant Listing', // Ensure non-empty name
-        contact: {
-          ...adData.contact,
-          whatsapp: adData.contact.whatsapp || adData.contact.phone, // Use phone as fallback
-        }
-      };
-
-      // Additional validation for Stripe requirements
-      if (!submissionData.shopName || submissionData.shopName.trim() === '') {
-        throw new Error('Restaurant name is required for payment processing');
-      }
-
       // Log the JSON output for user to see
-      console.log('Ad JSON to be sent:', submissionData);
+      console.log('Ad JSON to be sent:', adData);
 
       const form = new FormData();
-      form.append('data', JSON.stringify(submissionData));
+      form.append('data', JSON.stringify(adData));
       formData.images.forEach((img) => {
         form.append('images', img);
       });
@@ -835,14 +811,7 @@ function Page() {
         form.append('coupon_code', couponCode);
       }
       const token = localStorage.getItem('access_token') || localStorage.getItem('admin_token');
-      
-      // Debug logging
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.kochchibazaar.lk';
-      console.log('API Base URL:', apiBaseUrl);
-      console.log('Token available:', !!token);
-      console.log('Form data being sent:', submissionData);
-      
-      const res = await fetch(`${apiBaseUrl}/api/ads/create`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ads/create`, {
         method: 'POST',
         headers: {
           accept: 'application/json',
@@ -851,19 +820,12 @@ function Page() {
         body: form,
       });
       
-      let responseData;
-      try {
-        responseData = await res.json();
-      } catch (parseError) {
-        console.error('Failed to parse response JSON:', parseError);
-        throw new Error('Invalid response from server');
-      }
-
       if (!res.ok) {
-        console.error('API Error Response:', responseData);
-        throw new Error(responseData?.message || responseData?.detail || `HTTP ${res.status}: Failed to create ad`);
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to create ad');
       }
       
+      const responseData = await res.json();
       console.log('API response:', responseData);
 
       // Special handling for Dansal: no payment/redirect
@@ -895,19 +857,7 @@ function Page() {
       
     } catch (err) {
       console.error('Submission error:', err);
-      
-      // Provide user-friendly error messages for common issues
-      let errorMessage = err.message || 'Error posting ad';
-      
-      if (errorMessage.includes('empty string') && errorMessage.includes('product_data')) {
-        errorMessage = 'Business name is required and cannot be empty. Please enter a valid business name.';
-      } else if (errorMessage.includes('Payment initiation failed')) {
-        errorMessage = 'Payment processing failed. Please check all required fields are filled correctly and try again.';
-      } else if (errorMessage.includes('Stripe session creation failed')) {
-        errorMessage = 'Payment setup failed. Please ensure your business information is complete and try again.';
-      }
-      
-      setError(errorMessage);
+      setError(err.message || 'Error posting ad');
     } finally {
       setLoading(false);
     }
@@ -1283,17 +1233,7 @@ function Page() {
                       required
                       className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
                       value={formData.restaurantName}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setFormData(prev => ({ ...prev, restaurantName: value }));
-                        // Clear missing field error if user starts typing a valid name
-                        if (value.trim() && missingFields.length > 0) {
-                          setMissingFields(prev => prev.filter(field => 
-                            !['Restaurant Name', 'Dansal Name', 'Hotel Chain Name'].includes(field)
-                          ));
-                        }
-                      }}
-                      placeholder="Enter dansal name"
+                      onChange={(e) => setFormData(prev => ({ ...prev, restaurantName: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -1335,17 +1275,7 @@ function Page() {
                       required
                       className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
                       value={formData.restaurantName}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setFormData(prev => ({ ...prev, restaurantName: value }));
-                        // Clear missing field error if user starts typing a valid name
-                        if (value.trim() && missingFields.length > 0) {
-                          setMissingFields(prev => prev.filter(field => 
-                            !['Restaurant Name', 'Dansal Name', 'Hotel Chain Name'].includes(field)
-                          ));
-                        }
-                      }}
-                      placeholder="Enter hotel chain name"
+                      onChange={(e) => setFormData(prev => ({ ...prev, restaurantName: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -1389,17 +1319,7 @@ function Page() {
                       required
                       className={`w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800${missingFields.includes('Restaurant Name') || missingFields.includes('Dansal Name') || missingFields.includes('Hotel Chain Name') ? ' border-red-500 focus:ring-red-200' : ''}`}
                       value={formData.restaurantName}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setFormData(prev => ({ ...prev, restaurantName: value }));
-                        // Clear missing field error if user starts typing a valid name
-                        if (value.trim() && missingFields.length > 0) {
-                          setMissingFields(prev => prev.filter(field => 
-                            !['Restaurant Name', 'Dansal Name', 'Hotel Chain Name'].includes(field)
-                          ));
-                        }
-                      }}
-                      placeholder="Enter your business name"
+                      onChange={(e) => setFormData(prev => ({ ...prev, restaurantName: e.target.value }))}
                     />
                   </div>
                   <div>
