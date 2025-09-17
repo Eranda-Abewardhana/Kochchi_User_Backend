@@ -119,36 +119,96 @@ const cities = {
   "Vavuniya": ["Vavuniya", "Cheddikulam", "Nedunkeni", "Vavunikulam"]
 };
 
-// Utility function to convert rupees to dollars
-const rupeesToDollars = (amount) => {
-  if (!amount || isNaN(amount)) return '$0.00';
-  return `$${(amount / 300).toFixed(2)}`;
-};
-const dollersToRupees = (amount) => {
-  if (!amount || isNaN(amount)) return '$0.00';
-  return `${(amount * 300).toFixed(2)}`;
-};
+// Currency conversion utilities with real-time exchange rates
+let cachedExchangeRate = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
-
-
-
-
-// utils/convertToLKR.js
-export async function convertToLKR(amount) {
+// Fetch current exchange rate with caching
+const fetchExchangeRate = async () => {
   try {
-    // Fetch exchange rates
+    // Check if we have cached data that's still valid
+    if (cachedExchangeRate && cacheTimestamp && 
+        (Date.now() - cacheTimestamp) < CACHE_DURATION) {
+      return cachedExchangeRate;
+    }
+
+    // Fetch fresh exchange rates
     const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    
     const data = await res.json();
+    
+    // Validate response structure
+    if (!data.rates || !data.rates.LKR) {
+      throw new Error("Invalid exchange rate data structure");
+    }
 
-    // Get LKR rate
-    const lkrRate = data.rates.LKR;
-
-    // Return converted amount
-    return amount * lkrRate;
+    // Cache the exchange rate
+    cachedExchangeRate = data.rates.LKR;
+    cacheTimestamp = Date.now();
+    
+    console.log(`Exchange rate updated: 1 USD = ${cachedExchangeRate} LKR`);
+    return cachedExchangeRate;
+    
   } catch (error) {
     console.error("Error fetching exchange rates:", error);
-    return null;
+    
+    // Return cached rate if available, otherwise fallback rate
+    if (cachedExchangeRate) {
+      console.warn("Using cached exchange rate due to API error");
+      return cachedExchangeRate;
+    }
+    
+    // Fallback to approximate rate (you can update this periodically)
+    console.warn("Using fallback exchange rate: 302 LKR per USD");
+    return 302;
   }
+};
+
+// Convert USD to LKR
+const usdToLkr = async (usdAmount) => {
+  if (!usdAmount || isNaN(usdAmount)) return 0;
+  
+  try {
+    const exchangeRate = await fetchExchangeRate();
+    return usdAmount * exchangeRate;
+  } catch (error) {
+    console.error("Error converting USD to LKR:", error);
+    return usdAmount * 302; // Fallback rate
+  }
+};
+
+// Convert LKR to USD
+const lkrToUsd = async (lkrAmount) => {
+  if (!lkrAmount || isNaN(lkrAmount)) return 0;
+  
+  try {
+    const exchangeRate = await fetchExchangeRate();
+    return lkrAmount / exchangeRate;
+  } catch (error) {
+    console.error("Error converting LKR to USD:", error);
+    return lkrAmount / 302; // Fallback rate
+  }
+};
+
+// Format currency display
+const formatLkr = (amount) => {
+  if (!amount || isNaN(amount)) return 'Rs. 0.00';
+  return `Rs. ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const formatUsd = (amount) => {
+  if (!amount || isNaN(amount)) return '$0.00';
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+// Legacy function for backward compatibility (updated to use real rates)
+export async function convertToLKR(amount) {
+  return await usdToLkr(amount);
 }
 
 
@@ -216,6 +276,17 @@ function Page() {
     top: 0,
     international: 0,
   });
+
+  // State for exchange rates and currency display
+  const [exchangeRate, setExchangeRate] = useState(302); // Default fallback rate
+  const [pricingLkr, setPricingLkr] = useState({
+    base: 0,
+    carousal: 0,
+    top: 0,
+    international: 0,
+  });
+  const [totalPriceLkr, setTotalPriceLkr] = useState(0);
+  const [isLoadingRates, setIsLoadingRates] = useState(true);
 
   // Dansal form state
   const [dansalForm, setDansalForm] = useState({
@@ -365,10 +436,18 @@ function Page() {
 
   // Fetch pricing from API on mount
   useEffect(() => {
-    const fetchPricing = async () => {
+    const fetchPricingAndRates = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/pricing/all`);
-        const data = await res.json();
+        setIsLoadingRates(true);
+        
+        // Fetch pricing and exchange rates in parallel
+        const [pricingRes, exchangeRate] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/pricing/all`),
+          fetchExchangeRate()
+        ]);
+        
+        const data = await pricingRes.json();
+        
         if (data && Array.isArray(data.prices)) {
           // Ignore the last element
           const prices = data.prices.slice(0, 4);
@@ -379,13 +458,34 @@ function Page() {
             else if (item.product.name === 'top_add_price') top = item.amount;
             else if (item.product.name === 'international_add_price') international = item.amount;
           });
+          
+          // Set USD pricing
           setPricing({ base, carousal, top, international });
+          
+          // Set exchange rate
+          setExchangeRate(exchangeRate);
+          
+          // Convert to LKR and set LKR pricing
+          const pricingInLkr = {
+            base: base * exchangeRate,
+            carousal: carousal * exchangeRate,
+            top: top * exchangeRate,
+            international: international * exchangeRate,
+          };
+          setPricingLkr(pricingInLkr);
+          
+          console.log('Pricing loaded:', { usd: { base, carousal, top, international }, lkr: pricingInLkr, exchangeRate });
         }
       } catch (err) {
-        console.error('Failed to fetch pricing:', err);
+        console.error('Failed to fetch pricing or exchange rates:', err);
+        // Set fallback exchange rate
+        setExchangeRate(302);
+      } finally {
+        setIsLoadingRates(false);
       }
     };
-    fetchPricing();
+    
+    fetchPricingAndRates();
   }, []);
 
   // Load Leaflet CSS and JS
@@ -735,19 +835,37 @@ function Page() {
 
   useEffect(() => {
     let basePrice = pricing.base; // Use dynamic base price
+    let basePriceLkr = pricingLkr.base; // LKR equivalent
+    
     if (formData.category === 'Dansal') {
       basePrice = 0; // Free for dansal
+      basePriceLkr = 0;
     } else if (formData.category === 'Sri Lankan Worldwide Restaurant') {
       basePrice = pricing.international; // Use international price
-      if (formData.carouselAdd) basePrice += pricing.carousal; // Use dynamic add-on prices
-      if (formData.topAdd) basePrice += pricing.top;
+      basePriceLkr = pricingLkr.international;
+      if (formData.carouselAdd) {
+        basePrice += pricing.carousal; // Use dynamic add-on prices
+        basePriceLkr += pricingLkr.carousal;
+      }
+      if (formData.topAdd) {
+        basePrice += pricing.top;
+        basePriceLkr += pricingLkr.top;
+      }
     } else {
       // Regular pricing for other categories
-      if (formData.carouselAdd) basePrice += pricing.carousal;
-      if (formData.topAdd) basePrice += pricing.top;
+      if (formData.carouselAdd) {
+        basePrice += pricing.carousal;
+        basePriceLkr += pricingLkr.carousal;
+      }
+      if (formData.topAdd) {
+        basePrice += pricing.top;
+        basePriceLkr += pricingLkr.top;
+      }
     }
+    
     setTotalPrice(basePrice);
-  }, [formData.carouselAdd, formData.topAdd, formData.category, pricing]);
+    setTotalPriceLkr(basePriceLkr);
+  }, [formData.carouselAdd, formData.topAdd, formData.category, pricing, pricingLkr]);
 
   // Keep formData.specialties in sync with selectedSpecialties
   useEffect(() => {
@@ -1646,8 +1764,8 @@ function Page() {
                         <div>
                           <h4 className="font-semibold text-gray-900">Carousel Add</h4>
                           <p className="text-2xl font-bold text-amber-600">
-                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollersToRupees(pricing.carousal) : dollersToRupees(pricing.carousal)}
-                            <span className="ml-2 text-base text-gray-500">(${pricing.carousal})</span>
+                            {formatLkr(pricingLkr.carousal)}
+                            <span className="ml-2 text-base text-gray-500">({formatUsd(pricing.carousal)})</span>
                           </p>
                         </div>
                       </div>
@@ -1698,8 +1816,8 @@ function Page() {
                         <div>
                           <h4 className="font-semibold text-gray-900">Top Add</h4>
                           <p className="text-2xl font-bold text-slate-700">
-                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollersToRupees(pricing.top) : dollersToRupees(pricing.top)}
-                            <span className="ml-2 text-base text-gray-500">(${(pricing.top)})</span>
+                            {formatLkr(pricingLkr.top)}
+                            <span className="ml-2 text-base text-gray-500">({formatUsd(pricing.top)})</span>
                           </p>
                         </div>
                       </div>
@@ -1748,12 +1866,28 @@ function Page() {
                 <p className={`text-3xl font-bold ${
                   formData.category === 'Dansal' ? 'text-emerald-700' : 'text-slate-800'
                 }`}>
-                  {formData.category === 'Dansal' ? 'FREE' : `Rs. ${dollersToRupees(totalPrice)}`}
+                  {formData.category === 'Dansal' ? 'FREE' : formatLkr(totalPriceLkr)}
                   {formData.category !== 'Dansal' && (
-                    <span className="ml-2 text-lg text-gray-500">(${(totalPrice)})</span>
+                    <span className="ml-2 text-lg text-gray-500">({formatUsd(totalPrice)})</span>
+                  )}
+                  {formData.category !== 'Dansal' && isLoadingRates && (
+                    <span className="ml-2 text-sm text-blue-600">(Updating rates...)</span>
                   )}
                 </p>
               </div>
+              {formData.category !== 'Dansal' && (
+                <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-blue-700 font-medium">Exchange Rate:</span>
+                    <span className="text-blue-800">
+                      1 USD = Rs. {exchangeRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Prices are shown in LKR for convenience. Payment will be processed in USD via Stripe.
+                  </p>
+                </div>
+              )}
               <p className="text-sm text-gray-600 mt-2">
                 {formData.category === 'Dansal' 
                   ? "Thank you for your charitable contribution! Dansal listings are free to support community service."

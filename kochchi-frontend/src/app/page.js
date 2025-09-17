@@ -318,7 +318,7 @@ export default function Home() {
       {/* Top Ads Section */}
       <Topaddcontainer />
       <MainThreeCards/>
-      <SuccessNotification/>
+      {/* <SuccessNotification/> */}
       <Popup />
     </div>
   );
