@@ -119,35 +119,30 @@ const cities = {
   "Vavuniya": ["Vavuniya", "Cheddikulam", "Nedunkeni", "Vavunikulam"]
 };
 
-// Utility function to convert rupees to dollars
+// Utility functions for currency conversion
 const rupeesToDollars = (amount) => {
   if (!amount || isNaN(amount)) return '$0.00';
   return `$${(amount / 300).toFixed(2)}`;
 };
-const dollersToRupees = (amount) => {
-  if (!amount || isNaN(amount)) return '$0.00';
-  return `${(amount * 300).toFixed(2)}`;
+
+const dollarsToRupees = (amount) => {
+  if (!amount || isNaN(amount)) return '0.00';
+  return (amount * 300).toFixed(2);
 };
 
-
-
-
-
-// utils/convertToLKR.js
+// Currency conversion API function
 export async function convertToLKR(amount) {
   try {
     // Fetch exchange rates
     const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
     const data = await res.json();
-
     // Get LKR rate
     const lkrRate = data.rates.LKR;
-
     // Return converted amount
     return amount * lkrRate;
   } catch (error) {
     console.error("Error fetching exchange rates:", error);
-    return null;
+    return amount * 300; // Fallback rate
   }
 }
 
@@ -627,47 +622,65 @@ function Page() {
   };
 
   // Build the JSON object for preview and submission (move outside handleSubmit)
-  const adData = {
-    shopName: formData.restaurantName,
-    contact: {
-      address: formData.address,
-      phone: formData.mobileNumber,
-      whatsapp: formData.whatsapp,
-      email: formData.email,
-      website: formData.website,
-    },
-    location: {
-      googleMapLocation: formData.googleMapLocation,
-      city: formData.city,
-      district: formData.district,
-      province: formData.state || '',
-      country: formData.country || 'Sri Lanka',
-      state: formData.state || 'N/A',
-    },
-    business: {
-      category: formData.category,
-      specialty: formData.specialties.length > 0 ? [formData.specialties[0]] : [],
-      tags: formData.specialties,
-      halalAvailable: formData.halalAvailability === 'Yes',
-      description: formData.description,
-      menuOptions: menuOptions.length > 0 ? menuOptions : ["Rice & Curry", "Biryani"],
-    },
-    schedule: {
-      mon: [formData.openingTimes.monday && formData.closingTimes.monday ? `${formData.openingTimes.monday}-${formData.closingTimes.monday}` : '10:00-22:00'],
-      tue: [formData.openingTimes.tuesday && formData.closingTimes.tuesday ? `${formData.openingTimes.tuesday}-${formData.closingTimes.tuesday}` : '10:00-22:00'],
-      wed: [formData.openingTimes.wednesday && formData.closingTimes.wednesday ? `${formData.openingTimes.wednesday}-${formData.closingTimes.wednesday}` : '10:00-22:00'],
-      thu: [formData.openingTimes.thursday && formData.closingTimes.thursday ? `${formData.openingTimes.thursday}-${formData.closingTimes.thursday}` : '10:00-22:00'],
-      fri: [formData.openingTimes.friday && formData.closingTimes.friday ? `${formData.openingTimes.friday}-${formData.closingTimes.friday}` : '10:00-22:00'],
-      sat: [formData.openingTimes.saturday && formData.closingTimes.saturday ? `${formData.openingTimes.saturday}-${formData.closingTimes.saturday}` : '10:00-23:00'],
-      sun: [formData.openingTimes.sunday && formData.closingTimes.sunday ? `${formData.openingTimes.sunday}-${formData.closingTimes.sunday}` : '10:00-23:00'],
-    },
-    adSettings: {
-      isTopAd: formData.topAdd,
-      isCarousalAd: formData.carouselAdd,
-      hasHalal: formData.halalAvailability === 'Yes',
-    },
-    videoUrl: videoUrl || 'https://example.com/video.mp4',
-  };
+  const adData = useMemo(() => {
+    // Helper function to get province for district
+    const getProvinceForDistrict = (district) => {
+      const provinceMap = {
+        "Colombo": "Western", "Gampaha": "Western", "Kalutara": "Western",
+        "Kandy": "Central", "Matale": "Central", "Nuwara Eliya": "Central",
+        "Galle": "Southern", "Matara": "Southern", "Hambantota": "Southern",
+        "Ampara": "Eastern", "Batticaloa": "Eastern", "Trincomalee": "Eastern",
+        "Anuradhapura": "North Central", "Polonnaruwa": "North Central",
+        "Badulla": "Uva", "Monaragala": "Uva",
+        "Jaffna": "Northern", "Kilinochchi": "Northern", "Mannar": "Northern", "Mullaitivu": "Northern", "Vavuniya": "Northern",
+        "Kegalle": "Sabaragamuwa", "Ratnapura": "Sabaragamuwa",
+        "Kurunegala": "North Western", "Puttalam": "North Western"
+      };
+      return provinceMap[district] || '';
+    };
+
+    return {
+      shopName: formData.restaurantName || '',
+      contact: {
+        address: formData.address || '',
+        phone: formData.mobileNumber || '',
+        whatsapp: formData.whatsapp || formData.mobileNumber || '',
+        email: formData.email || '',
+        website: formData.website || '',
+      },
+      location: {
+        googleMapLocation: formData.googleMapLocation || `${selectedCoords.lat},${selectedCoords.lng}`,
+        city: formData.city || '',
+        district: formData.district || '',
+        province: formData.state || getProvinceForDistrict(formData.district) || '',
+        country: formData.country || 'Sri Lanka',
+        state: formData.state || 'N/A',
+      },
+      business: {
+        category: formData.category || '',
+        specialty: formData.specialties && formData.specialties.length > 0 ? formData.specialties.slice(0, 3) : ["Sri Lankan"],
+        tags: formData.specialties && formData.specialties.length > 0 ? formData.specialties : ["Traditional"],
+        halalAvailable: formData.halalAvailability === 'Yes',
+        description: formData.description || 'Authentic local cuisine',
+        menuOptions: menuOptions.length > 0 ? menuOptions : ["Rice & Curry", "Biryani"],
+      },
+      schedule: {
+        mon: [formData.openingTimes.monday && formData.closingTimes.monday ? `${formData.openingTimes.monday}-${formData.closingTimes.monday}` : '10:00-22:00'],
+        tue: [formData.openingTimes.tuesday && formData.closingTimes.tuesday ? `${formData.openingTimes.tuesday}-${formData.closingTimes.tuesday}` : '10:00-22:00'],
+        wed: [formData.openingTimes.wednesday && formData.closingTimes.wednesday ? `${formData.openingTimes.wednesday}-${formData.closingTimes.wednesday}` : '10:00-22:00'],
+        thu: [formData.openingTimes.thursday && formData.closingTimes.thursday ? `${formData.openingTimes.thursday}-${formData.closingTimes.thursday}` : '10:00-22:00'],
+        fri: [formData.openingTimes.friday && formData.closingTimes.friday ? `${formData.openingTimes.friday}-${formData.closingTimes.friday}` : '10:00-22:00'],
+        sat: [formData.openingTimes.saturday && formData.closingTimes.saturday ? `${formData.openingTimes.saturday}-${formData.closingTimes.saturday}` : '10:00-23:00'],
+        sun: [formData.openingTimes.sunday && formData.closingTimes.sunday ? `${formData.openingTimes.sunday}-${formData.closingTimes.sunday}` : '10:00-23:00'],
+      },
+      adSettings: {
+        isTopAd: Boolean(formData.topAdd),
+        isCarousalAd: Boolean(formData.carouselAdd),
+        hasHalal: formData.halalAvailability === 'Yes',
+      },
+      videoUrl: videoUrl || 'https://example.com/video.mp4',
+    };
+  }, [formData, selectedCoords, menuOptions, videoUrl]);
 
   // Define animation variants
   const containerVariants = {
@@ -799,30 +812,60 @@ function Page() {
       return;
     }
     try {
+      // Validate required data
+      if (!adData.shopName) {
+        throw new Error('Shop name is required');
+      }
+      if (!adData.business.category) {
+        throw new Error('Category is required');
+      }
+      if (formData.category !== 'Dansal' && (!formData.images || formData.images.length === 0)) {
+        throw new Error('At least one image is required');
+      }
+
       // Log the JSON output for user to see
       console.log('Ad JSON to be sent:', adData);
+      console.log('API URL:', `${process.env.NEXT_PUBLIC_API_BASE_URL}/ads/create`);
+      console.log('Form data images count:', formData.images?.length || 0);
+      console.log('Coupon code:', couponCode || 'None');
 
       const form = new FormData();
+      
+      // Add the data as JSON string - this is critical to match the CURL format
       form.append('data', JSON.stringify(adData));
-      formData.images.forEach((img) => {
-        form.append('images', img);
-      });
-      if (couponCode) {
-        form.append('coupon_code', couponCode);
+      
+      // Add images - each image should be appended separately
+      if (formData.images && formData.images.length > 0) {
+        formData.images.forEach((img) => {
+          form.append('images', img);
+        });
       }
+      
+      // Add coupon code if provided
+      if (couponCode && couponCode.trim()) {
+        form.append('coupon_code', couponCode.trim());
+      }
+
       const token = localStorage.getItem('access_token') || localStorage.getItem('admin_token');
+      
+      if (!token) {
+        throw new Error('Authentication token not found. Please login again.');
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ads/create`, {
         method: 'POST',
         headers: {
-          accept: 'application/json',
-          Authorization: `Bearer ${token}`,
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          // Note: Don't set Content-Type for FormData - let browser set it
         },
         body: form,
       });
       
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to create ad');
+        const errorData = await res.json().catch(() => ({ message: 'Unknown error occurred' }));
+        console.error('API Error Response:', errorData);
+        throw new Error(errorData.message || `HTTP ${res.status}: ${res.statusText}`);
       }
       
       const responseData = await res.json();
@@ -1598,6 +1641,43 @@ function Page() {
               </motion.div>
             )}
 
+            {/* Menu Options */}
+            {formData.category !== 'Dansal' && (
+              <motion.div className="space-y-4" variants={itemVariants}>
+                <label className="block text-xs font-medium text-gray-500 mb-1">MENU OPTIONS (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rice & Curry, Biryani, Kottu (separate with commas)"
+                  className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
+                  value={menuOptions.join(', ')}
+                  onChange={(e) => {
+                    const options = e.target.value.split(',').map(opt => opt.trim()).filter(opt => opt.length > 0);
+                    setMenuOptions(options);
+                  }}
+                />
+                <p className="text-sm text-gray-500">
+                  List your popular menu items separated by commas.
+                </p>
+              </motion.div>
+            )}
+
+            {/* Video URL */}
+            {formData.category !== 'Dansal' && (
+              <motion.div className="space-y-4" variants={itemVariants}>
+                <label className="block text-xs font-medium text-gray-500 mb-1">VIDEO URL (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/your-restaurant-video.mp4"
+                  className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                />
+                <p className="text-sm text-gray-500">
+                  Add a promotional video URL to showcase your business.
+                </p>
+              </motion.div>
+            )}
+
             {/* Specialties Selection (for Restaurants) */}
             {formData.category === 'Restaurant' && (
               <motion.div className="space-y-4" variants={itemVariants}>
@@ -1646,7 +1726,7 @@ function Page() {
                         <div>
                           <h4 className="font-semibold text-gray-900">Carousel Add</h4>
                           <p className="text-2xl font-bold text-amber-600">
-                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollersToRupees(pricing.carousal) : dollersToRupees(pricing.carousal)}
+                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollarsToRupees(pricing.carousal) : dollarsToRupees(pricing.carousal)}
                             <span className="ml-2 text-base text-gray-500">(${pricing.carousal})</span>
                           </p>
                         </div>
@@ -1698,7 +1778,7 @@ function Page() {
                         <div>
                           <h4 className="font-semibold text-gray-900">Top Add</h4>
                           <p className="text-2xl font-bold text-slate-700">
-                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollersToRupees(pricing.top) : dollersToRupees(pricing.top)}
+                            Rs. {formData.category === 'Sri Lankan Worldwide Restaurant' ? dollarsToRupees(pricing.top) : dollarsToRupees(pricing.top)}
                             <span className="ml-2 text-base text-gray-500">(${(pricing.top)})</span>
                           </p>
                         </div>
@@ -1729,6 +1809,23 @@ function Page() {
               </motion.div>
             )}
 
+            {/* Coupon Code */}
+            {formData.category !== 'Dansal' && (
+              <motion.div className="space-y-4" variants={itemVariants}>
+                <label className="block text-xs font-medium text-gray-500 mb-1">COUPON CODE (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Enter coupon code if you have one"
+                  className="w-full px-4 py-3 border rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 text-gray-800"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                />
+                <p className="text-sm text-gray-500">
+                  Have a discount coupon? Enter it here to get reduced pricing.
+                </p>
+              </motion.div>
+            )}
+
             {/* Total Price */}
             <motion.div 
               className={`p-6 rounded-xl border ${
@@ -1748,7 +1845,7 @@ function Page() {
                 <p className={`text-3xl font-bold ${
                   formData.category === 'Dansal' ? 'text-emerald-700' : 'text-slate-800'
                 }`}>
-                  {formData.category === 'Dansal' ? 'FREE' : `Rs. ${dollersToRupees(totalPrice)}`}
+                  {formData.category === 'Dansal' ? 'FREE' : `Rs. ${dollarsToRupees(totalPrice)}`}
                   {formData.category !== 'Dansal' && (
                     <span className="ml-2 text-lg text-gray-500">(${(totalPrice)})</span>
                   )}
